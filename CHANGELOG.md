@@ -2,19 +2,27 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## Unreleased
+## 3.1.0 (2026-03-12)
 
-### Breaking Changes
-
-- migrate the package to Agenda v6 and explicit backend configuration
-- replace raw `Agenda` injection with the queue-scoped `AgendaQueue` facade
-- publish dual CommonJS and ESM builds while loading Agenda dynamically at runtime
 
 ### Features
 
-- support generic Agenda v6 backends per queue, including MongoDB, PostgreSQL, Redis, and custom backend factories
-- isolate queues through internal job namespacing so identical job names can coexist across queues
-- add unit and integration tests for facade behavior, queue wiring, and collection/backend propagation
+* enable multiple queues ([#3](https://github.com/gnurub/agenda-nest/issues/3)) ([ce2f869](https://github.com/gnurub/agenda-nest/commit/ce2f869d58a7afa13b34a9c9d5d11486a7a2d831))
+* **examples:** update usage example ([ecf44be](https://github.com/gnurub/agenda-nest/commit/ecf44be9b3a877b84500f683c0a44dadc717e94f))
+* initial development ([#1](https://github.com/gnurub/agenda-nest/issues/1)) ([cee8b8e](https://github.com/gnurub/agenda-nest/commit/cee8b8e9f45e6cd6cb2b3da5829446e21b29ebe7))
+* support async queue registration ([#22](https://github.com/gnurub/agenda-nest/issues/22)) ([03ca996](https://github.com/gnurub/agenda-nest/commit/03ca9969b6a93655ac99bc0df718a61263d4384d))
+* support custom collection name for queue ([#25](https://github.com/gnurub/agenda-nest/issues/25)) ([#26](https://github.com/gnurub/agenda-nest/issues/26)) ([25e22f5](https://github.com/gnurub/agenda-nest/commit/25e22f5e866abb3099067e7bfd775a767f4ecec5))
+* support disabling auto start of queue ([#11](https://github.com/gnurub/agenda-nest/issues/11)) ([db3090e](https://github.com/gnurub/agenda-nest/commit/db3090ef6983cbe5cbdd30efd03de6b60817c46a))
+* support nest 9 ([dd9a35c](https://github.com/gnurub/agenda-nest/commit/dd9a35c3cb4e49fdd75ec1e7057bd7e419b0a7f8))
+
+
+### Bug Fixes
+
+* `done` not passed to processors ([#10](https://github.com/gnurub/agenda-nest/issues/10)) ([4aaa67c](https://github.com/gnurub/agenda-nest/commit/4aaa67cd3fd5d01141caaab9d3e80d483069a462)), closes [#8](https://github.com/gnurub/agenda-nest/issues/8)
+* add Inject decorator to agenda metadata accessor constructor ([#14](https://github.com/gnurub/agenda-nest/issues/14)) ([4149cc9](https://github.com/gnurub/agenda-nest/commit/4149cc92fedf8eed3921af4233d94eab93a1d941))
+* disconnect from database on shutdown ([#5](https://github.com/gnurub/agenda-nest/issues/5)) ([86a106b](https://github.com/gnurub/agenda-nest/commit/86a106b37e1d599181d41c6b13413db2ad71e611)), closes [#4](https://github.com/gnurub/agenda-nest/issues/4)
+* jobs with argument not unlocking ([e2d4068](https://github.com/gnurub/agenda-nest/commit/e2d4068a3b0fad2ebd55d1e8e4bb669b71754ecb))
+* peerDependencies field ([059c52f](https://github.com/gnurub/agenda-nest/commit/059c52f00f1fe26d03d0ef1f08f2d41b7d863f7d))
 
 ## [2.1.0](https://github.com/jongolden/agenda-nest/compare/v2.0.0...v2.1.0) (2023-04-11)
 
