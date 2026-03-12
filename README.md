@@ -1,8 +1,8 @@
 # Agenda Nest
 
 <p>
-  <a href="https://www.npmjs.com/package/agenda-nest" target="_blank"><img src="https://img.shields.io/npm/v/agenda-nest.svg" alt="NPM Version" /></a>
-  <a href="https://www.npmjs.com/package/agenda-nest" target="_blank"><img src="https://img.shields.io/npm/l/agenda-nest.svg" alt="Package License" /></a>
+  <a href="https://www.npmjs.com/package/@gnurub/agenda-nest" target="_blank"><img src="https://img.shields.io/npm/v/@gnurub/agenda-nest.svg" alt="NPM Version" /></a>
+  <a href="https://www.npmjs.com/package/@gnurub/agenda-nest" target="_blank"><img src="https://img.shields.io/npm/l/@gnurub/agenda-nest.svg" alt="Package License" /></a>
 </p>
 
 > Note: This repository is a fork of [jongolden/agenda-nest](https://github.com/jongolden/agenda-nest).
@@ -39,19 +39,19 @@ Agenda v6 uses explicit backends. Install Agenda Nest, Agenda itself, and the ba
 MongoDB:
 
 ```bash
-npm install agenda-nest agenda @agendajs/mongo-backend
+npm install @gnurub/agenda-nest agenda @agendajs/mongo-backend
 ```
 
 PostgreSQL:
 
 ```bash
-npm install agenda-nest agenda @agendajs/postgres-backend
+npm install @gnurub/agenda-nest agenda @agendajs/postgres-backend
 ```
 
 Redis:
 
 ```bash
-npm install agenda-nest agenda @agendajs/redis-backend
+npm install @gnurub/agenda-nest agenda @agendajs/redis-backend
 ```
 
 Requirements:
@@ -73,7 +73,7 @@ import {
   Define,
   InjectQueue,
   Queue,
-} from "agenda-nest";
+} from "@gnurub/agenda-nest";
 
 type NotificationPayload = {
   to: string;
@@ -132,7 +132,7 @@ export class AppModule {}
 
 ```ts
 import { Module } from "@nestjs/common";
-import { AgendaModule } from "agenda-nest";
+import { AgendaModule } from "@gnurub/agenda-nest";
 
 @Module({
   imports: [
@@ -160,7 +160,7 @@ You can also configure it asynchronously.
 ```ts
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { AgendaModule } from "agenda-nest";
+import { AgendaModule } from "@gnurub/agenda-nest";
 
 @Module({
   imports: [
@@ -196,7 +196,7 @@ Each queue inherits the root runtime configuration and can override queue-specif
 
 ```ts
 import { Module } from "@nestjs/common";
-import { AgendaModule } from "agenda-nest";
+import { AgendaModule } from "@gnurub/agenda-nest";
 
 @Module({
   imports: [
@@ -241,7 +241,7 @@ Use `@Queue()` on the class and `@Define()` on methods that should become Agenda
 ```ts
 import { Injectable } from "@nestjs/common";
 import type { Job } from "agenda";
-import { Define, Queue } from "agenda-nest";
+import { Define, Queue } from "@gnurub/agenda-nest";
 
 type ReportPayload = {
   reportId: string;
@@ -280,7 +280,7 @@ Use decorators when the schedule is known at boot time.
 
 ```ts
 import type { Job } from "agenda";
-import { Every, Now, Queue, Schedule } from "agenda-nest";
+import { Every, Now, Queue, Schedule } from "@gnurub/agenda-nest";
 
 @Queue("reports")
 export class ReportsQueue {
@@ -309,7 +309,7 @@ Use `@InjectQueue()` when payloads come from application code at runtime.
 
 ```ts
 import { Injectable } from "@nestjs/common";
-import { AgendaQueue, InjectQueue } from "agenda-nest";
+import { AgendaQueue, InjectQueue } from "@gnurub/agenda-nest";
 
 @Injectable()
 export class ReportsService {
@@ -355,7 +355,7 @@ import {
   OnQueueError,
   OnQueueReady,
   Queue,
-} from "agenda-nest";
+} from "@gnurub/agenda-nest";
 
 @Queue("notifications")
 export class NotificationsListeners {
@@ -423,7 +423,7 @@ Example:
 
 ```ts
 import { Injectable } from "@nestjs/common";
-import { AgendaQueue, InjectQueue } from "agenda-nest";
+import { AgendaQueue, InjectQueue } from "@gnurub/agenda-nest";
 
 @Injectable()
 export class NotificationsAdminService {
@@ -478,7 +478,7 @@ For package-level tests, the most valuable checks are:
 ### Example Unit Test
 
 ```ts
-import { AgendaQueue } from "agenda-nest";
+import { AgendaQueue } from "@gnurub/agenda-nest";
 import { describe, expect, it, vi } from "vitest";
 
 describe("AgendaQueue", () => {

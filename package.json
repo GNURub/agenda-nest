@@ -21,9 +21,7 @@
   "scripts": {
     "prepublish": "node --run build",
     "prepare": "node --run build && husky install",
-    "build": "rimraf -rf dist && node --run build:cjs && node --run build:esm && node scripts/write-dist-package-jsons.mjs",
-    "build:cjs": "tsc -p tsconfig.build.cjs.json",
-    "build:esm": "tsc -p tsconfig.build.esm.json",
+    "build": "rimraf -rf dist && tsup --config tsup.config.ts && node scripts/write-dist-package-jsons.mjs",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint --deny-warnings lib --ignore-pattern 'lib/**/*.spec.ts'",
@@ -92,7 +90,7 @@
     "@nestjs/core": "^11.1.16",
     "@nestjs/testing": "^11.1.16",
     "@swc/core": "^1.15.18",
-    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/coverage-v8": "^4.1.0",
     "agenda": "^6.2.3",
     "husky": "^9.1.7",
     "mongodb": "^7.1.0",
@@ -103,8 +101,9 @@
     "rimraf": "^6.1.3",
     "rxjs": "^7.8.2",
     "ts-node": "^10.9.2",
+    "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "unplugin-swc": "^1.5.9",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.0"
   }
 }
