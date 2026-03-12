@@ -2,22 +2,65 @@ import { AgendaQueue } from './agenda.queue';
 
 describe('AgendaQueue', () => {
   it('should namespace manual scheduling calls', async () => {
+    const payload = {
+      to: 'user@example.com',
+      metadata: { locale: 'en-US' },
+    };
+    const options = {
+      startDate: new Date('2026-01-01T00:00:00.000Z'),
+      skipDays: [0, 6],
+    };
     const agenda = {
       schedule: vi.fn(),
     } as any;
 
     const queue = new AgendaQueue(agenda, 'notifications');
 
-    await queue.schedule('tomorrow at noon', 'sendNotification', {
-      to: 'user@example.com',
-    });
+    await queue.schedule(
+      'tomorrow at noon',
+      'sendNotification',
+      payload,
+      options,
+    );
 
     expect(agenda.schedule).toHaveBeenCalledWith(
       'tomorrow at noon',
       'notifications::sendNotification',
-      { to: 'user@example.com' },
-      undefined,
+      payload,
+      options,
     );
+    expect(agenda.schedule.mock.calls[0][2]).toBe(payload);
+    expect(agenda.schedule.mock.calls[0][3]).toBe(options);
+  });
+
+  it('should namespace recurring scheduling calls and preserve payload/options', async () => {
+    const payload = {
+      kind: 'digest',
+      recipients: ['ops@example.com'],
+    };
+    const options = {
+      timezone: 'UTC',
+      skipImmediate: true,
+      startDate: new Date('2026-01-01T00:00:00.000Z'),
+      endDate: '2026-12-31T23:59:59.000Z',
+      skipDays: [0, 6],
+    };
+    const agenda = {
+      every: vi.fn(),
+    } as any;
+
+    const queue = new AgendaQueue(agenda, 'notifications');
+
+    await queue.every('15 minutes', 'sendDigest', payload, options);
+
+    expect(agenda.every).toHaveBeenCalledWith(
+      '15 minutes',
+      'notifications::sendDigest',
+      payload,
+      options,
+    );
+    expect(agenda.every.mock.calls[0][2]).toBe(payload);
+    expect(agenda.every.mock.calls[0][3]).toBe(options);
   });
 
   it('should namespace named event subscriptions', () => {
@@ -36,6 +79,10 @@ describe('AgendaQueue', () => {
   });
 
   it('should strip namespace from queried jobs', async () => {
+    const jobData = {
+      to: 'user@example.com',
+      nested: { retries: 1 },
+    };
     const agenda = {
       queryJobs: vi.fn().mockResolvedValue({
         total: 1,
@@ -43,6 +90,7 @@ describe('AgendaQueue', () => {
           {
             _id: '1',
             name: 'notifications::sendNotification',
+            data: jobData,
             state: 'queued',
             nextRunAt: null,
             lockedAt: null,
@@ -59,21 +107,54 @@ describe('AgendaQueue', () => {
       name: 'notifications::sendNotification',
     });
     expect(result.jobs[0].name).toBe('sendNotification');
+    expect(result.jobs[0].data).toBe(jobData);
   });
 
   it('should namespace create calls', () => {
+    const payload = {
+      to: 'user@example.com',
+      metadata: { priority: 'high' },
+    };
+    const createdJob = {
+      attrs: {
+        name: 'notifications::sendNotification',
+        data: payload,
+      },
+    };
     const agenda = {
-      create: vi.fn(),
+      create: vi.fn().mockReturnValue(createdJob),
     } as any;
 
     const queue = new AgendaQueue(agenda, 'notifications');
 
-    queue.create('sendNotification', { to: 'user@example.com' });
+    const result = queue.create('sendNotification', payload);
 
     expect(agenda.create).toHaveBeenCalledWith(
       'notifications::sendNotification',
-      { to: 'user@example.com' },
+      payload,
     );
+    expect(agenda.create.mock.calls[0][1]).toBe(payload);
+    expect(result).toBe(createdJob);
+  });
+
+  it('should namespace immediate jobs and preserve payload references', async () => {
+    const payload = {
+      userId: 'user-1',
+      channels: ['email', 'sms'],
+    };
+    const agenda = {
+      now: vi.fn().mockResolvedValue(undefined),
+    } as any;
+
+    const queue = new AgendaQueue(agenda, 'notifications');
+
+    await queue.now('sendNow', payload);
+
+    expect(agenda.now).toHaveBeenCalledWith(
+      'notifications::sendNow',
+      payload,
+    );
+    expect(agenda.now.mock.calls[0][1]).toBe(payload);
   });
 
   it('should namespace remove queries', async () => {
@@ -161,26 +242,44 @@ describe('AgendaQueue', () => {
   });
 
   it('should normalize job payloads received by listeners', () => {
+    const payload = {
+      ok: true,
+      metadata: { retries: 2 },
+    };
+    const nextRunAt = new Date('2026-02-01T10:00:00.000Z');
+    let originalJob: any;
+
+    class FakeJob {
+      constructor(public attrs: Record<string, unknown>) { }
+
+      touch() {
+        return 'touched';
+      }
+    }
+
     const listener = vi.fn();
     const agenda = {
       on: vi.fn((eventName: string, handler: (...args: unknown[]) => void) => {
         if (eventName === 'complete:notifications::sendNotification') {
-          handler({
-            attrs: {
-              name: 'notifications::sendNotification',
-              data: { ok: true },
-            },
+          originalJob = new FakeJob({
+            name: 'notifications::sendNotification',
+            data: payload,
+            failCount: 2,
+            nextRunAt,
           });
+
+          handler(originalJob);
         }
       }),
       once: vi.fn(
         (eventName: string, handler: (...args: unknown[]) => void) => {
           if (eventName === 'success:notifications::sendNotification') {
-            handler({
-              attrs: {
+            handler(
+              new FakeJob({
                 name: 'notifications::sendNotification',
-              },
-            });
+                data: { ok: false },
+              }),
+            );
           }
         },
       ),
@@ -192,6 +291,19 @@ describe('AgendaQueue', () => {
 
     queue.on('complete:sendNotification', listener);
     queue.once('success:sendNotification', listener);
+
+    const normalizedJob = listener.mock.calls[0][0];
+
+    expect(normalizedJob).not.toBe(originalJob);
+    expect(normalizedJob).toBeInstanceOf(FakeJob);
+    expect(normalizedJob.attrs).toEqual({
+      name: 'sendNotification',
+      data: payload,
+      failCount: 2,
+      nextRunAt,
+    });
+    expect(normalizedJob.attrs.data).toBe(payload);
+    expect(normalizedJob.touch()).toBe('touched');
 
     expect(listener).toHaveBeenNthCalledWith(
       1,

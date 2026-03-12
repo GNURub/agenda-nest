@@ -1,311 +1,537 @@
 # Agenda Nest
 
-<a href="https://www.npmjs.com/package/agenda-nest" target="_blank"><img src="https://img.shields.io/npm/v/agenda-nest.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/package/agenda-nest" target="_blank"><img src="https://img.shields.io/npm/l/agenda-nest.svg" alt="Package License" /></a>
-
+<p>
+  <a href="https://www.npmjs.com/package/agenda-nest" target="_blank"><img src="https://img.shields.io/npm/v/agenda-nest.svg" alt="NPM Version" /></a>
+  <a href="https://www.npmjs.com/package/agenda-nest" target="_blank"><img src="https://img.shields.io/npm/l/agenda-nest.svg" alt="Package License" /></a>
 </p>
 
-A lightweight job scheduler for NestJS
+NestJS integration for Agenda v6 with queue registration, decorators, scoped queue facades, and multi-queue job namespacing.
+
+Agenda Nest brings Agenda into the NestJS module system with:
+
+- explicit Agenda v6 backend configuration
+- queue registration through `AgendaModule`
+- decorators for processors, schedulers, and queue events
+- `@InjectQueue()` support via the `AgendaQueue` facade
+- automatic queue namespacing so multiple queues can reuse the same job names safely
+- payload integrity: only queue prefixes are normalized, while `job.attrs.data` and the rest of the job attributes remain intact
 
 ## Table of Contents
 
-- [Background](#background)
-- [Install](#install)
-- [Configure Agenda](#configure-agenda)
-- [Job processors](#job-processors)
-- [Job schedulers](#job-schedulers)
-- [Event listeners](#event-listeners)
-- [Manually working with a queue](#manually-working-with-a-queue)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Root Configuration](#root-configuration)
+- [Queue Configuration](#queue-configuration)
+- [Defining Job Processors](#defining-job-processors)
+- [Scheduling Jobs](#scheduling-jobs)
+- [Listening to Queue Events](#listening-to-queue-events)
+- [Working with Queues Manually](#working-with-queues-manually)
+- [Testing](#testing)
+- [Migration Notes](#migration-notes)
 - [License](#license)
 
-## Background
+## Installation
 
-Agenda Nest provides a NestJS module wrapper for [Agenda](https://github.com/agenda/agenda), a lightweight job scheduling library. Heavily inspired by Nest's own Bull implementation, [@nestjs/bull](https://github.com/nestjs/bull), Agenda Nest provides a fully-featured implementation, complete with decorators for defining your jobs, processors and queue event listeners. You may optionally, make use of Agenda Nest's Express controller to interface with your queues through HTTP.
+Agenda v6 uses explicit backends. Install Agenda Nest, Agenda itself, and the backend you want to use.
 
-### Dependencies
-
-Agenda v6 uses explicit backends. This package supports MongoDB, PostgreSQL, Redis, or a custom Agenda backend factory. Install the backend package you plan to use in your Nest application.
-
-## Install
+MongoDB:
 
 ```bash
 npm install agenda-nest agenda @agendajs/mongo-backend
 ```
 
-For PostgreSQL or Redis, replace the backend package accordingly.
+PostgreSQL:
 
-## Configure Agenda
+```bash
+npm install agenda-nest agenda @agendajs/postgres-backend
+```
 
-Agenda Nest now uses Agenda v6 configuration. Root configuration combines Agenda runtime options with a backend definition. Queue configuration can override runtime options, `autoStart`, `collection` for MongoDB, `namespace`, and even the backend definition itself.
+Redis:
 
-### Synchronously
+```bash
+npm install agenda-nest agenda @agendajs/redis-backend
+```
+
+Requirements:
+
+- Node.js 18+
+- NestJS 8 or 9
+- Agenda 6.x
+
+## Quick Start
+
+The example below wires a root Agenda configuration, registers a `notifications` queue, defines a processor, and schedules jobs at runtime with a typed payload.
 
 ```ts
-import { Module } from '@nestjs/common';
-import { AgendaModule } from 'agenda-nest';
+import { Injectable, Module } from "@nestjs/common";
+import type { Job } from "agenda";
+import {
+  AgendaModule,
+  AgendaQueue,
+  Define,
+  InjectQueue,
+  Queue,
+} from "agenda-nest";
+
+type NotificationPayload = {
+  to: string;
+  subject: string;
+  body: string;
+};
+
+@Queue("notifications")
+@Injectable()
+export class NotificationsQueue {
+  @Define({ name: "send-email", priority: "high", concurrency: 10 })
+  async sendEmail(job: Job<NotificationPayload>) {
+    const { to, subject, body } = job.attrs.data;
+
+    await emailClient.send({ to, subject, body });
+  }
+}
+
+@Injectable()
+export class NotificationsService {
+  constructor(
+    @InjectQueue("notifications")
+    private readonly queue: AgendaQueue,
+  ) {}
+
+  async sendWelcomeEmail(to: string) {
+    await this.queue.now("send-email", {
+      to,
+      subject: "Welcome",
+      body: "Thanks for joining.",
+    });
+  }
+}
 
 @Module({
   imports: [
     AgendaModule.forRoot({
-      processEvery: '3 minutes',
+      processEvery: "30 seconds",
       backend: {
-        type: 'mongo',
+        type: "mongo",
         options: {
-          address: 'mongodb://localhost:27017/agenda-nest',
+          address: "mongodb://127.0.0.1:27017/agenda-nest",
+        },
+      },
+    }),
+    AgendaModule.registerQueue("notifications"),
+  ],
+  providers: [NotificationsQueue, NotificationsService],
+})
+export class AppModule {}
+```
+
+## Root Configuration
+
+`AgendaModule.forRoot()` configures the shared Agenda runtime settings and backend definition.
+
+```ts
+import { Module } from "@nestjs/common";
+import { AgendaModule } from "agenda-nest";
+
+@Module({
+  imports: [
+    AgendaModule.forRoot({
+      processEvery: "1 minute",
+      defaultConcurrency: 5,
+      maxConcurrency: 20,
+      defaultLockLifetime: 10 * 60 * 1000,
+      backend: {
+        type: "mongo",
+        options: {
+          address: "mongodb://localhost:27017/app",
+          collection: "agendaJobs",
           ensureIndex: true,
         },
       },
     }),
   ],
-  providers: [Jobs],
 })
 export class AppModule {}
 ```
 
-### Asynchronously
+You can also configure it asynchronously.
 
 ```ts
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AgendaModule } from 'agenda-nest';
-import configuration from './configuration';
+import { Module } from "@nestjs/common";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { AgendaModule } from "agenda-nest";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      load: [configuration],
-    }),
+    ConfigModule.forRoot(),
     AgendaModule.forRootAsync({
+      inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        processEvery: config.get('queues.processInterval'),
+        processEvery: config.get("queues.processEvery", "30 seconds"),
         backend: {
-          type: 'mongo',
+          type: "postgres",
           options: {
-            address: config.get('database.connectionString'),
+            connectionString: config.getOrThrow<string>("DATABASE_URL"),
           },
         },
       }),
-      inject: [ConfigService],
     }),
   ],
-  providers: [Jobs],
 })
 export class AppModule {}
 ```
 
-## Configure queues
+Supported backend definitions:
 
-Agenda Nest can manage multiple queues within your application. To configure a new queue use `AgendaModule.registerQueue(queueName: string, config?: AgendaQueueConfig)`. Queues inherit the root configuration, but each queue is isolated through an internal namespace and may override runtime options or even the backend definition.
+- built-in MongoDB backend
+- built-in PostgreSQL backend
+- built-in Redis backend
+- a custom factory function returning an Agenda backend
+- a `{ type: 'custom', factory }` definition
 
-### Synchronously
+## Queue Configuration
+
+Each queue inherits the root runtime configuration and can override queue-specific settings.
 
 ```ts
-import { Module } from '@nestjs/common';
-import { AgendaModule } from 'agenda-nest';
+import { Module } from "@nestjs/common";
+import { AgendaModule } from "agenda-nest";
 
 @Module({
   imports: [
-    AgendaModule.registerQueue('notifications', {
-      processEvery: '5 minutes',
-      autoStart: false, // default: true
-      collection: 'notificationsqueue', // default: notifications-queue (`${queueName}-queue`)
-      namespace: 'notifications', // default: queue name
+    AgendaModule.registerQueue("notifications", {
+      autoStart: false,
+      processEvery: "15 seconds",
+      namespace: "notifications",
+      collection: "notifications-queue",
+    }),
+    AgendaModule.registerQueue("reports", {
+      namespace: "analytics",
     }),
   ],
 })
-export class NotificationsModule {}
+export class QueuesModule {}
 ```
 
-### Asynchronously
+Queue options:
 
-```js
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AgendaModule } from 'agenda-nest';
+- `autoStart`: start the queue automatically on bootstrap, defaults to `true`
+- `namespace`: internal namespace prefix used for job names, defaults to the queue name
+- `collection`: MongoDB collection override, defaults to `<queueName>-queue`
+- any Agenda runtime option supported by `AgendaOptions` except `backend`
+- an optional queue-level backend override
 
-@Module({
-  imports: [
-    AgendaModule.registerQueueAsync('notifications', {
-      useFactory: (config: ConfigService) => ({
-        processEvery: config.get('queues.notifications.processInterval'),
-        autoStart: config.get('queues.notifications.autoStart'),
-      }),
-      inject: [ConfigService],
-    }),
-  ],
-})
-export class NotificationsModule {}
+Asynchronous queue configuration is also supported.
+
+```ts
+AgendaModule.registerQueueAsync("notifications", {
+  inject: [ConfigService],
+  useFactory: (config: ConfigService) => ({
+    autoStart: config.get("queues.notifications.autoStart", true),
+    processEvery: config.get("queues.notifications.processEvery", "30 seconds"),
+  }),
+});
 ```
 
-## Job processors
+## Defining Job Processors
 
-Job processors are methods defined on a class declared with the `@Queue(name: string)` decorator. Queue names are internally namespaced so multiple queues can safely define the same job names even when they share the same backend.
+Use `@Queue()` on the class and `@Define()` on methods that should become Agenda processors.
 
-```js
-import { Queue } from 'agenda-nest';
+```ts
+import { Injectable } from "@nestjs/common";
+import type { Job } from "agenda";
+import { Define, Queue } from "agenda-nest";
 
-// will use a "notifications-queue" collection
-@Queue('notifications')
-export class NotificationsQueue {}
+type ReportPayload = {
+  reportId: string;
+  format: "csv" | "pdf";
+};
 
-// with custom collection name
-@Queue('notifications')
-export class NotificationsQueue {}
-```
-
-To **define**, but not schedule, a job on the queue, use the `@Define()` decorator as shown below. To define a scheduled job, see [Job schedulers](#job-schedulers).
-
-```js
-import { Define, Queue } from 'agenda-nest';
-
-@Queue('notifications')
-export class NotificationsQueue {
-  @Define()
-  async sendNotification() {}
-}
-```
-
-## Job schedulers
-
-To define and schedule a job on the queue, use one of the `@Every()`, `@Schedule()`, or `@Now()` decorators. See Agenda's [Creating Jobs](https://github.com/agenda/agenda#creating-jobs) documentation for an explanation on the behavior of each.
-
-### `@Every(nameOrOptions: string | JobOptions)`
-
-Defines a job to run at the given interval
-
-```js
-import { Every, Queue } from 'agenda-nest';
-
-@Queue('notifications')
-export class NotificationsQueue {
-  @Every({ name: 'send notifications', interval: '15 minutes' })
-  async sendNotifications() {
-    const users = await User.doSomethingReallyIntensive();
-    sendNotification(users, 'Welcome!');
-  }
-}
-
-@Queue('reports')
+@Queue("reports")
+@Injectable()
 export class ReportsQueue {
-  @Every('15 minutes')
-  async printAnalyticsReport() {
-    const users = await User.doSomethingReallyIntensive();
-    processUserData(users);
+  @Define({
+    name: "generate-report",
+    concurrency: 2,
+    priority: "high",
+    lockLifetime: 60_000,
+  })
+  async generateReport(job: Job<ReportPayload>) {
+    const { reportId, format } = job.attrs.data;
+
+    await reportsService.generate(reportId, format);
   }
 }
 ```
 
-### `@Schedule(nameOrOptions: string | JobOptions)`
+The processor receives the original Agenda `Job` instance. Agenda Nest does not rewrite your payload when a job is executed. Your data is available under `job.attrs.data`, exactly as scheduled.
 
-Schedules a job to run once at the given time.
+## Scheduling Jobs
 
-```js
-import { Schedule, Queue } from 'agenda-nest';
+Agenda Nest supports two scheduling styles:
 
-@Queue('notifications')
-export class NotificationsQueue {
-  @Schedule({ name: 'send notifications', when: 'tomorrow at noon' })
-  async sendNotifications() {
-    const users = await User.doSomethingReallyIntensive();
-    sendNotification(users, 'Welcome!');
-  }
-}
+1. static scheduling declared with decorators during bootstrap
+2. runtime scheduling through `AgendaQueue`
 
-@Queue('reports')
+### Static Scheduling with Decorators
+
+Use decorators when the schedule is known at boot time.
+
+```ts
+import type { Job } from "agenda";
+import { Every, Now, Queue, Schedule } from "agenda-nest";
+
+@Queue("reports")
 export class ReportsQueue {
-  @Schedule('tomorrow at noon')
-  async printAnalyticsReport() {
-    const users = await User.doSomethingReallyIntensive();
-    processUserData(users);
+  @Every({ name: "sync-metrics", interval: "5 minutes" })
+  async syncMetrics(job: Job) {
+    await metricsService.sync();
+  }
+
+  @Schedule({ name: "daily-summary", when: "tomorrow at 08:00" })
+  async dailySummary(job: Job) {
+    await summaryService.send();
+  }
+
+  @Now("warm-cache")
+  async warmCache(job: Job) {
+    await cacheService.warm();
   }
 }
 ```
 
-### `@Now(name?: string)`
+Decorator-based schedulers are intended for static jobs. If you need to pass runtime payloads per request, use the manual queue API shown below.
 
-Schedules a job to run once immediately.
+### Runtime Scheduling with `AgendaQueue`
 
-```js
-import { Now, Queue } from 'agenda-nest';
+Use `@InjectQueue()` when payloads come from application code at runtime.
 
-@Queue('dance')
-export class DanceQueue {
-  @Now()
-  async doTheHokeyPokey() {
-    hokeyPokey();
-  }
-
-  @Now('do the cha-cha')
-  async doTheChaCha() {
-    chaCha();
-  }
-}
-```
-
-## Event Listeners
-
-Agenda generates a set of useful events when queue and/or job state changes occur. Agenda NestJS provides a set of decorators that allow subscribing to a core set of standard events.
-
-Event listeners must be declared within an injectable class (i.e., within a class decorated with the @Queue() decorator). To listen for an event, use one of the decorators in the table below to declare a handler for the event. For example, to listen to the event emitted when a job enters the active state in the audio queue, use the following construct:
-
-```js
-import { OnQueueReady } from 'agenda-nest';
-import { Job } from 'agenda';
-
-@Queue()
-export class JobsQueue {
-  @OnQueueReady()
-  onReady() {
-    console.log('Jobs queue is ready to run our jobs');
-  }
-  ...
-```
-
-### Agenda Events
-
-An instance of an agenda will emit the queue events listed below. Use the corresponding method decorator to listen for and handle each event.
-
-| Event   | Listener          |                                                                                |
-| :------ | :---------------- | :----------------------------------------------------------------------------- |
-| `ready` | `@OnQueueReady()` | called when Agenda mongo connection is successfully opened and indices created |
-| `error` | `@OnQueueError()` | called when Agenda mongo connection process has thrown an error                |
-
-### Job Queue Events
-
-An instance of an agenda will emit the job events listed below. Use the corresponding method decorator to listen for and handle each event.
-
-| Event                             | Listener                        |                                                                   |
-| :-------------------------------- | :------------------------------ | :---------------------------------------------------------------- |
-| `start` or `start:job name`       | `@OnJobStart(name?: string)`    | called just before a job starts                                   |
-| `complete` or `complete:job name` | `@OnJobComplete(name?: string)` | called when a job finishes, regardless of if it succeeds or fails |
-| `success` or `success:job name`   | `@OnJobSuccess(name?: string)`  | called when a job finishes successfully                           |
-| `fail` or `fail:job name`         | `@OnJobFail(name?: string)`     | called when a job throws an error                                 |
-
-## Manually working with a queue
-
-You can access any registered queue using the `@InjectQueue(queueName)` decorator, which injects an `AgendaQueue` facade scoped to that queue. The facade namespaces job names and named events automatically, while still exposing `getRawAgenda()` when you need the underlying Agenda instance.
-
-```js
-import { AgendaQueue, InjectQueue } from 'agenda-nest';
+```ts
+import { Injectable } from "@nestjs/common";
+import { AgendaQueue, InjectQueue } from "agenda-nest";
 
 @Injectable()
-export class NotificationsService {
-  constructor(@InjectQueue('notifications') private queue: AgendaQueue) {}
+export class ReportsService {
+  constructor(@InjectQueue("reports") private readonly queue: AgendaQueue) {}
 
-  async scheduleNotification(sendAt: string) {
-    await this.queue.schedule(sendAt, 'sendNotification', {
-      to: 'user@example.com',
+  async scheduleReport(reportId: string) {
+    await this.queue.schedule("in 10 minutes", "generate-report", {
+      reportId,
+      format: "pdf",
+    });
+  }
+
+  async scheduleDigest(userId: string) {
+    await this.queue.every(
+      "1 day",
+      "generate-report",
+      { reportId: userId, format: "csv" },
+      { timezone: "UTC", skipImmediate: true },
+    );
+  }
+
+  async runImmediately(reportId: string) {
+    await this.queue.now("generate-report", {
+      reportId,
+      format: "pdf",
     });
   }
 }
 ```
 
+The `AgendaQueue` facade automatically prefixes internal names like `reports::generate-report` before calling Agenda, but it leaves your payload untouched.
+
+## Listening to Queue Events
+
+Use decorators to subscribe to queue-level and job-level events.
+
+```ts
+import type { Job } from "agenda";
+import {
+  OnJobComplete,
+  OnJobFail,
+  OnJobSuccess,
+  OnQueueError,
+  OnQueueReady,
+  Queue,
+} from "agenda-nest";
+
+@Queue("notifications")
+export class NotificationsListeners {
+  @OnQueueReady()
+  onReady() {
+    logger.log("Notifications queue is ready");
+  }
+
+  @OnQueueError()
+  onError(error: Error) {
+    logger.error(error.message, error.stack);
+  }
+
+  @OnJobSuccess("send-email")
+  onEmailSent(job: Job<{ to: string }>) {
+    logger.log(`Sent email to ${job.attrs.data.to}`);
+  }
+
+  @OnJobComplete("send-email")
+  onComplete(job: Job) {
+    logger.log(`Completed ${job.attrs.name}`);
+  }
+
+  @OnJobFail("send-email")
+  onFailure(error: Error, job: Job<{ to: string }>) {
+    logger.error(
+      `Failed to send email to ${job.attrs.data.to}: ${error.message}`,
+    );
+  }
+}
+```
+
+When a job is received through queue-scoped listeners, Agenda Nest normalizes only queue-specific name fields:
+
+- `job.attrs.name` loses the internal `<namespace>::` prefix
+- log entries returned by the facade normalize `jobName` the same way
+
+Everything else stays intact, including:
+
+- `job.attrs.data`
+- `failCount`
+- `nextRunAt`
+- the job prototype and its methods
+
+## Working with Queues Manually
+
+`@InjectQueue()` injects an `AgendaQueue`, not the raw Agenda instance.
+
+Available methods include:
+
+- `define()`
+- `create()`
+- `every()`
+- `schedule()`
+- `now()`
+- `queryJobs()`
+- `cancel()`
+- `getLogs()`
+- `clearLogs()`
+- `on()`, `once()`, `off()`, `removeListener()`
+- `start()`, `stop()`, `drain()`
+- `getRawAgenda()`
+
+Example:
+
+```ts
+import { Injectable } from "@nestjs/common";
+import { AgendaQueue, InjectQueue } from "agenda-nest";
+
+@Injectable()
+export class NotificationsAdminService {
+  constructor(
+    @InjectQueue("notifications")
+    private readonly queue: AgendaQueue,
+  ) {}
+
+  async listPendingJobs() {
+    return this.queue.queryJobs({
+      name: "send-email",
+      limit: 20,
+      sort: { nextRunAt: "asc" },
+    });
+  }
+
+  async cancelPendingJobs() {
+    return this.queue.cancel({ names: ["send-email", "send-reminder"] });
+  }
+
+  get agenda() {
+    return this.queue.getRawAgenda();
+  }
+}
+```
+
+Use `getRawAgenda()` when you need an Agenda feature that is not yet exposed by the queue facade.
+
+## Testing
+
+This repository uses Vitest.
+
+Available commands:
+
+```bash
+npm run test:unit
+npm run test:e2e
+npm run test:smoke
+npm run test:coverage
+```
+
+### What to Test
+
+For package-level tests, the most valuable checks are:
+
+- queue name namespacing
+- processor registration and scheduling
+- event wiring
+- payload integrity, especially `job.attrs.data`
+- preservation of job attributes when queue-scoped listeners normalize names
+
+### Example Unit Test
+
+```ts
+import { AgendaQueue } from "agenda-nest";
+import { describe, expect, it, vi } from "vitest";
+
+describe("AgendaQueue", () => {
+  it("keeps job attrs.data intact for queue-scoped listeners", () => {
+    const payload = { to: "user@example.com", nested: { retries: 1 } };
+    const listener = vi.fn();
+
+    class FakeJob {
+      constructor(public attrs: Record<string, unknown>) {}
+    }
+
+    const agenda = {
+      on: vi.fn((eventName: string, handler: (job: FakeJob) => void) => {
+        handler(
+          new FakeJob({
+            name: "notifications::send-email",
+            data: payload,
+            failCount: 2,
+          }),
+        );
+      }),
+    } as any;
+
+    const queue = new AgendaQueue(agenda, "notifications");
+    queue.on("success:send-email", listener);
+
+    const normalizedJob = listener.mock.calls[0][0];
+
+    expect(normalizedJob.attrs).toEqual({
+      name: "send-email",
+      data: payload,
+      failCount: 2,
+    });
+    expect(normalizedJob.attrs.data).toBe(payload);
+  });
+});
+```
+
+That last assertion is important: the queue facade normalizes internal names, but it should not strip or rewrite the job payload.
+
+The repository also includes:
+
+- unit tests for the queue facade, module registration, factories, and metadata discovery
+- end-to-end tests for module wiring and queue events
+- a smoke test for the `examples/multiple-queues` application
+
 ## Migration Notes
 
-- `db` and `mongo` root configuration were removed in favor of `backend`.
-- Agenda v6 is ESM-only; this package now publishes dual ESM/CJS builds and loads Agenda dynamically.
-- `@InjectQueue()` now injects `AgendaQueue` instead of the raw `Agenda` instance.
-- Multiple queues are isolated through internal job namespacing, so duplicate job names across queues are supported for every backend.
+If you are migrating from an older version of this package or from a pre-v6 Agenda setup:
+
+- Agenda v6 uses explicit backends instead of the old implicit MongoDB configuration
+- `AgendaModule.forRoot()` now expects a `backend` definition
+- `@InjectQueue()` injects `AgendaQueue`, not the raw `Agenda` instance
+- multiple queues are isolated through internal job-name namespacing
+- runtime payload scheduling should go through `AgendaQueue` methods such as `schedule()`, `every()`, `now()`, or `create()`
 
 ## License
 
