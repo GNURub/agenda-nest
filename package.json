@@ -28,8 +28,10 @@
     "format:check": "oxfmt --check .",
     "lint": "oxlint --deny-warnings lib --ignore-pattern 'lib/**/*.spec.ts'",
     "test": "npm run lint && npm run test:unit && npm run test:e2e",
-    "test:unit": "jest --config=jest.config.ts --runInBand",
-    "test:e2e": "jest --config=e2e/jest-e2e.config.ts --detectOpenHandles --runInBand --forceExit",
+    "test:unit": "vitest run --project unit",
+    "test:e2e": "vitest run --project e2e",
+    "test:smoke": "vitest run --project example-smoke",
+    "test:coverage": "vitest run --coverage",
     "release": "npx standard-version"
   },
   "author": "Jonathan Golden <jongolden17@gmail.com>",
@@ -68,6 +70,7 @@
       "optional": true
     }
   },
+  "packageManager": "^bun@1.30.0",
   "devDependencies": {
     "@agendajs/mongo-backend": "^4.0.0",
     "@agendajs/postgres-backend": "^3.0.3",
@@ -75,21 +78,24 @@
     "@commitlint/cli": "^17.8.1",
     "@commitlint/config-angular": "^17.8.1",
     "@commitlint/config-conventional": "^17.8.1",
-    "@jest/types": "^29.6.3",
     "@nestjs/common": "^9.4.3",
+    "@nestjs/config": "^2.3.1",
     "@nestjs/core": "^9.4.3",
     "@nestjs/testing": "^9.4.3",
-    "@types/jest": "^29.5.14",
+    "@swc/core": "^1.15.18",
+    "@vitest/coverage-v8": "^4.0.18",
     "agenda": "^6.2.3",
     "husky": "^8.0.3",
-    "jest": "^29.7.0",
     "mongodb": "^6.21.0",
     "mongodb-memory-server": "^8.16.1",
     "oxfmt": "^0.39.0",
     "oxlint": "^1.54.0",
+    "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
-    "ts-jest": "^29.4.6",
+    "rxjs": "^7.8.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "unplugin-swc": "^1.5.9",
+    "vitest": "^4.0.18"
   }
 }

@@ -8,6 +8,7 @@ import {
   OnJobFail,
   OnJobStart,
   OnJobSuccess,
+  OnQueueError,
   OnQueueReady,
   Queue,
   Schedule,
@@ -73,5 +74,10 @@ export class JobsHandler {
   @OnJobFail('test failure')
   onJobFail(error: Error) {
     this.handled.push(this.onJobFail.name);
+  }
+
+  @OnQueueError()
+  onQueueError(error: Error) {
+    this.handled.push(this.onQueueError.name);
   }
 }

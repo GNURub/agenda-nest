@@ -2,8 +2,15 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist/tests",
-    "types": ["jest", "node"],
+    "types": ["vitest/globals", "node"],
     "rootDir": ".",
     "resolveJsonModule": true
-  }
+  },
+  "include": [
+    "lib/**/*.spec.ts",
+    "e2e/**/*.ts",
+    "examples/multiple-queues/**/*.ts",
+    "vitest.config.ts",
+    "vitest.setup.ts"
+  ]
 }

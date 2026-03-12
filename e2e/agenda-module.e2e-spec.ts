@@ -1,10 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Agenda } from 'agenda';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { AgendaModule } from '../lib';
 import { AlphaJobsHandler, BetaJobsHandler } from './isolation.handlers';
 import { JobsHandler } from './jobs.handler';
-
-jest.setTimeout(10000);
 
 type Listener = (...args: any[]) => void;
 
@@ -182,7 +189,7 @@ class FakeAgenda {
   }
 }
 
-jest.mock('../lib/loaders/agenda.loader', () => ({
+vi.mock('../lib/loaders/agenda.loader', () => ({
   loadAgendaModule: async () => ({ Agenda: FakeAgenda }),
   loadMongoBackendModule: async () => ({ MongoBackend: FakeMongoBackend }),
   loadPostgresBackendModule: async () => ({
@@ -281,6 +288,12 @@ describe('Agenda Module', () => {
     it('should notify when a job has failed', () => {
       expect(jobsHandler.handled).toContain('onJobFail');
     });
+
+    it('should notify when the queue emits an error', () => {
+      (agenda as any).emit('error', new Error('queue failed'));
+
+      expect(jobsHandler.handled).toContain('onQueueError');
+    });
   });
 
   describe('configuration', () => {
@@ -293,7 +306,7 @@ describe('Agenda Module', () => {
       const agenda = testingModule.get<Agenda>('jobs-queue:raw', {
         strict: false,
       });
-      jest.spyOn(agenda, 'start');
+      vi.spyOn(agenda, 'start');
 
       await testingModule.init();
 
@@ -314,7 +327,7 @@ describe('Agenda Module', () => {
       const agenda = testingModule.get<Agenda>('jobs-queue:raw', {
         strict: false,
       });
-      jest.spyOn(agenda, 'start');
+      vi.spyOn(agenda, 'start');
 
       await testingModule.init();
 
@@ -363,6 +376,48 @@ describe('Agenda Module', () => {
 
       expect(alpha.handled).toContain('sharedJob');
       expect(beta.handled).toContain('sharedJob');
+
+      await testingModule.close();
+    });
+  });
+
+  describe('async configuration', () => {
+    class RootConfigFactory {
+      createAgendaConfig() {
+        return {
+          processEvery: 50,
+          backend: {
+            type: 'mongo' as const,
+            options: {
+              address: 'mongodb://example.test/agenda',
+            },
+          },
+        };
+      }
+    }
+
+    it('should resolve root config from useClass and queue config from useFactory', async () => {
+      const testingModule = await Test.createTestingModule({
+        imports: [
+          AgendaModule.forRootAsync({ useClass: RootConfigFactory }),
+          AgendaModule.registerQueueAsync('jobs', {
+            useFactory: () => ({
+              namespace: 'custom-space',
+              autoStart: false,
+            }),
+          }),
+        ],
+        providers: [RootConfigFactory, JobsHandler],
+      }).compile();
+
+      await testingModule.init();
+
+      const agenda = testingModule.get<any>('jobs-queue:raw', {
+        strict: false,
+      });
+
+      expect(agenda.attrs.name).toBe('custom-space');
+      expect(agenda.start).not.toHaveProperty('mock');
 
       await testingModule.close();
     });

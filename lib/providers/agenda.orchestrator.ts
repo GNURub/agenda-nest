@@ -1,5 +1,6 @@
 import {
   BeforeApplicationShutdown,
+  Inject,
   Injectable,
   Logger,
   OnApplicationBootstrap,
@@ -49,13 +50,12 @@ type QueueRegistry = {
 
 @Injectable()
 export class AgendaOrchestrator
-  implements OnApplicationBootstrap, BeforeApplicationShutdown
-{
+  implements OnApplicationBootstrap, BeforeApplicationShutdown {
   private readonly logger = new Logger('Agenda');
 
   private readonly queues: Map<string, QueueRegistry> = new Map();
 
-  constructor(private readonly moduleRef: ModuleRef) {}
+  constructor(@Inject(ModuleRef) private readonly moduleRef: ModuleRef) { }
 
   async onApplicationBootstrap() {
     for await (const queue_ of this.queues) {

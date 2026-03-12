@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner } from '@nestjs/core';
 import { InstanceWrapper } from '@nestjs/core/injector/instance-wrapper';
 import type { Job } from 'agenda';
@@ -15,11 +15,15 @@ export class AgendaExplorer implements OnModuleInit {
   private readonly logger = new Logger('Agenda');
 
   constructor(
+    @Inject(DiscoveryService)
     private readonly discoveryService: DiscoveryService,
+    @Inject(AgendaMetadataAccessor)
     private readonly metadataAccessor: AgendaMetadataAccessor,
+    @Inject(MetadataScanner)
     private readonly metadataScanner: MetadataScanner,
+    @Inject(AgendaOrchestrator)
     private readonly orchestrator: AgendaOrchestrator,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.explore();

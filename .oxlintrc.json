@@ -3,7 +3,9 @@
   "env": {
     "node": true
   },
-  "ignorePatterns": ["dist/**"],
+  "ignorePatterns": [
+    "dist/**"
+  ],
   "rules": {
     "@typescript-eslint/ban-types": "off",
     "@typescript-eslint/explicit-function-return-type": "off",
@@ -22,7 +24,7 @@
         "e2e/**/*.ts"
       ],
       "env": {
-        "jest": true,
+        "vitest": true,
         "node": true
       }
     }
