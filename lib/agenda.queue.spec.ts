@@ -150,10 +150,7 @@ describe('AgendaQueue', () => {
 
     await queue.now('sendNow', payload);
 
-    expect(agenda.now).toHaveBeenCalledWith(
-      'notifications::sendNow',
-      payload,
-    );
+    expect(agenda.now).toHaveBeenCalledWith('notifications::sendNow', payload);
     expect(agenda.now.mock.calls[0][1]).toBe(payload);
   });
 
@@ -250,7 +247,7 @@ describe('AgendaQueue', () => {
     let originalJob: any;
 
     class FakeJob {
-      constructor(public attrs: Record<string, unknown>) { }
+      constructor(public attrs: Record<string, unknown>) {}
 
       touch() {
         return 'touched';

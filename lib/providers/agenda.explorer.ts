@@ -23,7 +23,7 @@ export class AgendaExplorer implements OnModuleInit {
     private readonly metadataScanner: MetadataScanner,
     @Inject(AgendaOrchestrator)
     private readonly orchestrator: AgendaOrchestrator,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.explore();

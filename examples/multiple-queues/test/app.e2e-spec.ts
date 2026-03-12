@@ -7,11 +7,11 @@ class FakeMongoBackend {
 
   readonly ownsConnection = true;
 
-  constructor(readonly config: Record<string, unknown>) { }
+  constructor(readonly config: Record<string, unknown>) {}
 
-  async connect() { }
+  async connect() {}
 
-  async disconnect() { }
+  async disconnect() {}
 }
 
 class FakeAgenda {
@@ -44,17 +44,17 @@ class FakeAgenda {
     this.backend = config.backend as FakeMongoBackend;
   }
 
-  define() { }
+  define() {}
 }
 
 vi.mock('../../../lib/loaders/agenda.loader', () => ({
   loadAgendaModule: async () => ({ Agenda: FakeAgenda }),
   loadMongoBackendModule: async () => ({ MongoBackend: FakeMongoBackend }),
   loadPostgresBackendModule: async () => ({
-    PostgresBackend: class UnsupportedPostgresBackend { },
+    PostgresBackend: class UnsupportedPostgresBackend {},
   }),
   loadRedisBackendModule: async () => ({
-    RedisBackend: class UnsupportedRedisBackend { },
+    RedisBackend: class UnsupportedRedisBackend {},
   }),
 }));
 

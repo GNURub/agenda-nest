@@ -1,6 +1,6 @@
 {
-  "name": "agenda-nest",
-  "version": "3.0.0-rc.0",
+  "name": "@gnurub/agenda-nest",
+  "version": "3.0.0",
   "description": "A lightweight job scheduler for NestJS",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -16,30 +16,39 @@
     "dist"
   ],
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
-    "prepublish": "npm run build",
-    "prepare": "npm run build && husky install",
-    "build": "rimraf -rf dist && npm run build:cjs && npm run build:esm && node scripts/write-dist-package-jsons.mjs",
+    "prepublish": "node --run build",
+    "prepare": "node --run build && husky install",
+    "build": "rimraf -rf dist && node --run build:cjs && node --run build:esm && node scripts/write-dist-package-jsons.mjs",
     "build:cjs": "tsc -p tsconfig.build.cjs.json",
     "build:esm": "tsc -p tsconfig.build.esm.json",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint --deny-warnings lib --ignore-pattern 'lib/**/*.spec.ts'",
-    "test": "npm run lint && npm run test:unit && npm run test:e2e",
+    "test": "node --run lint && node --run test:unit && node --run test:e2e",
     "test:unit": "vitest run --project unit",
     "test:e2e": "vitest run --project e2e",
     "test:smoke": "vitest run --project example-smoke",
     "test:coverage": "vitest run --coverage",
     "release": "npx standard-version"
   },
-  "author": "Jonathan Golden <jongolden17@gmail.com>",
+  "authors": [
+    {
+      "name": "Rubén Cid Lara",
+      "email": "rubencidlara@gmail.com"
+    },
+    {
+      "name": "Jonathan Golden",
+      "email": "jongolden17@gmail.com"
+    }
+  ],
   "license": "MIT",
-  "url": "https://github.com/jongolden/agenda-nest#readme",
+  "url": "https://github.com/gnurub/agenda-nest#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jongolden/agenda-nest"
+    "url": "https://github.com/gnurub/agenda-nest"
   },
   "keywords": [
     "job",
@@ -52,8 +61,8 @@
     "nestjs"
   ],
   "peerDependencies": {
-    "@nestjs/common": "8.x || 9.x",
-    "@nestjs/core": "8.x || 9.x",
+    "@nestjs/common": ">=9.4.3",
+    "@nestjs/core": ">=9.4.3",
     "agenda": "^6.2.3",
     "@agendajs/mongo-backend": "^4.0.0",
     "@agendajs/postgres-backend": "^3.0.3",

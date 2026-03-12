@@ -5,6 +5,8 @@
   <a href="https://www.npmjs.com/package/agenda-nest" target="_blank"><img src="https://img.shields.io/npm/l/agenda-nest.svg" alt="Package License" /></a>
 </p>
 
+> Note: This repository is a fork of [jongolden/agenda-nest](https://github.com/jongolden/agenda-nest).
+
 NestJS integration for Agenda v6 with queue registration, decorators, scoped queue facades, and multi-queue job namespacing.
 
 Agenda Nest brings Agenda into the NestJS module system with:
