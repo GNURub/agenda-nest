@@ -1,6 +1,3 @@
-import type { MongoBackendConfig } from '@agendajs/mongo-backend';
-import type { PostgresBackendConfig } from '@agendajs/postgres-backend';
-import type { RedisBackendConfig } from '@agendajs/redis-backend';
 import {
   FactoryProvider,
   ModuleMetadata,
@@ -8,6 +5,50 @@ import {
   Type,
 } from '@nestjs/common';
 import type { AgendaBackend, AgendaOptions } from 'agenda';
+
+export type AgendaSortDirection = 'asc' | 'desc' | 1 | -1;
+
+export type MongoBackendConfig = (
+  | {
+    mongo: unknown;
+  }
+  | {
+    address: string;
+    options?: Record<string, unknown>;
+  }
+) & {
+  collection?: string;
+  ensureIndex?: boolean;
+  sort?: Record<string, AgendaSortDirection>;
+  logCollection?: string;
+};
+
+export interface PostgresBackendConfig {
+  connectionString?: string;
+  poolConfig?: Record<string, unknown>;
+  pool?: unknown;
+  tableName?: string;
+  channelName?: string;
+  ensureSchema?: boolean;
+  sort?: {
+    nextRunAt?: AgendaSortDirection;
+    priority?: AgendaSortDirection;
+  };
+  disableNotifications?: boolean;
+  logTableName?: string;
+}
+
+export interface RedisBackendConfig {
+  connectionString?: string;
+  redisOptions?: Record<string, unknown>;
+  redis?: unknown;
+  keyPrefix?: string;
+  channelName?: string;
+  sort?: {
+    nextRunAt?: AgendaSortDirection;
+    priority?: AgendaSortDirection;
+  };
+}
 
 export type AgendaRuntimeConfig = Omit<AgendaOptions, 'backend'>;
 
@@ -27,24 +68,24 @@ export type AgendaBackendFactory = (
 
 export type AgendaBuiltinBackendDefinition =
   | {
-      type: 'mongo';
-      options: MongoBackendConfig;
-    }
+    type: 'mongo';
+    options: MongoBackendConfig;
+  }
   | {
-      type: 'postgres';
-      options: PostgresBackendConfig;
-    }
+    type: 'postgres';
+    options: PostgresBackendConfig;
+  }
   | {
-      type: 'redis';
-      options: RedisBackendConfig;
-    };
+    type: 'redis';
+    options: RedisBackendConfig;
+  };
 
 export type AgendaBackendDefinition =
   | AgendaBuiltinBackendDefinition
   | {
-      type: 'custom';
-      factory: AgendaBackendFactory;
-    }
+    type: 'custom';
+    factory: AgendaBackendFactory;
+  }
   | AgendaBackendFactory;
 
 export type AgendaModuleConfig = AgendaRuntimeConfig & {

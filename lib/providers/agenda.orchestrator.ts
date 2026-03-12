@@ -50,8 +50,7 @@ type QueueRegistry = {
 
 @Injectable()
 export class AgendaOrchestrator
-  implements OnApplicationBootstrap, BeforeApplicationShutdown
-{
+  implements OnApplicationBootstrap, BeforeApplicationShutdown {
   private readonly logger = new Logger('Agenda');
 
   private readonly queues: Map<string, QueueRegistry> = new Map();

@@ -1,6 +1,6 @@
+import { AgendaModule } from '@gnurub/agenda-nest';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AgendaModule } from 'agenda-nest';
 import { ReportsQueue } from './reports.queue';
 
 @Module({
@@ -18,4 +18,4 @@ import { ReportsQueue } from './reports.queue';
   ],
   providers: [ReportsQueue],
 })
-export class ReportsModule {}
+export class ReportsModule { }

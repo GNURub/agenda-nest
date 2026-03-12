@@ -1,10 +1,10 @@
-import { Injectable, Inject, Type } from '@nestjs/common';
+import { Inject, Injectable, Type } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
-  JOB_PROCESSOR_TYPE,
-  JOB_NAME,
   AGENDA_JOB_OPTIONS,
   AGENDA_MODULE_QUEUE,
+  JOB_NAME,
+  JOB_PROCESSOR_TYPE,
   ON_QUEUE_EVENT,
 } from '../constants';
 import { AgendaModuleJobOptions } from '../decorators';
@@ -12,7 +12,7 @@ import { JobProcessorType } from '../enums';
 
 @Injectable()
 export class AgendaMetadataAccessor {
-  constructor(@Inject(Reflector.name) private readonly reflector: Reflector) {}
+  constructor(@Inject(Reflector) private readonly reflector: Reflector) {}
 
   isQueue(target: Type<any> | Function): boolean {
     return !!this.reflector.get(AGENDA_MODULE_QUEUE, target);

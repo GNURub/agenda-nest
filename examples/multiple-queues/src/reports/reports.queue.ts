@@ -1,4 +1,4 @@
-import { Every, OnQueueReady, Queue } from 'agenda-nest';
+import { Every, OnQueueReady, Queue } from '@gnurub/agenda-nest';
 
 @Queue('reports')
 export class ReportsQueue {

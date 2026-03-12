@@ -1,6 +1,6 @@
+import { AgendaModule } from '@gnurub/agenda-nest';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AgendaModule } from 'agenda-nest';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
 
@@ -22,4 +22,4 @@ import { ReportsModule } from './reports/reports.module';
     ReportsModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }
