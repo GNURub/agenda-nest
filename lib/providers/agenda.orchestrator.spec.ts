@@ -1,4 +1,3 @@
-import { ModuleRef } from '@nestjs/core';
 import { JobProcessorType } from '../enums';
 import { AgendaOrchestrator } from './agenda.orchestrator';
 
@@ -14,29 +13,14 @@ describe('AgendaOrchestrator', () => {
     on: vi.fn(),
   });
 
-  const createModuleRef = (
-    queue = createQueue(),
-    config = { autoStart: true, namespace: undefined },
-  ) =>
-    ({
-      get: vi.fn((token: string) => {
-        if (token === 'jobs-queue:raw') {
-          return queue;
-        }
-
-        if (token === 'AgendaQueueOptions_jobs') {
-          return config;
-        }
-
-        throw new Error(`Unknown token ${token}`);
-      }),
-    }) as unknown as ModuleRef;
-
   it('should define processors, schedule jobs and start queues', async () => {
     const queue = createQueue();
-    const orchestrator = new AgendaOrchestrator(createModuleRef(queue));
+    const orchestrator = new AgendaOrchestrator();
 
-    orchestrator.addQueue('jobs', 'jobs-queue:raw', 'AgendaQueueOptions_jobs');
+    orchestrator.addQueue('jobs', 'jobs-queue:raw', queue as any, {
+      autoStart: true,
+      namespace: undefined,
+    });
     orchestrator.addJobProcessor(
       'jobs-queue:raw',
       Object.assign(vi.fn(), { _name: 'sendEmail' }) as any,
@@ -102,16 +86,17 @@ describe('AgendaOrchestrator', () => {
 
   it('should wrap callback processors when requested and skip auto start', async () => {
     const queue = createQueue();
-    const orchestrator = new AgendaOrchestrator(
-      createModuleRef(queue, { autoStart: false, namespace: 'custom' }),
-    );
+    const orchestrator = new AgendaOrchestrator();
 
     const processor = Object.assign(
       vi.fn((job: unknown, done: () => void) => done()),
       { _name: 'sendEmail' },
     );
 
-    orchestrator.addQueue('jobs', 'jobs-queue:raw', 'AgendaQueueOptions_jobs');
+    orchestrator.addQueue('jobs', 'jobs-queue:raw', queue as any, {
+      autoStart: false,
+      namespace: 'custom',
+    });
     orchestrator.addJobProcessor(
       'jobs-queue:raw',
       processor as any,

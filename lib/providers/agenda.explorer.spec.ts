@@ -10,7 +10,7 @@ describe('AgendaExplorer', () => {
     failures = 0;
 
     @Every('1 minute')
-    sendDigest() {}
+    sendDigest() { }
 
     @OnJobFail('sendDigest')
     onFailure() {
@@ -24,11 +24,21 @@ describe('AgendaExplorer', () => {
 
   it('should register queues, processors and listeners from discovered providers', () => {
     const handler = new JobsHandler();
+    const queue = {};
+    const queueConfig = { autoStart: true, namespace: undefined };
     const discoveryService = {
       getProviders: vi.fn().mockReturnValue([
         {
           instance: handler,
           metatype: JobsHandler,
+        },
+        {
+          token: 'jobs-queue:raw',
+          instance: queue,
+        },
+        {
+          token: 'AgendaQueueOptions_jobs',
+          instance: queueConfig,
         },
       ]),
     } as unknown as DiscoveryService;
@@ -53,7 +63,8 @@ describe('AgendaExplorer', () => {
     expect((orchestrator.addQueue as any).mock.calls[0]).toEqual([
       'jobs',
       'jobs-queue:raw',
-      'AgendaQueueOptions_jobs',
+      queue,
+      queueConfig,
     ]);
     expect((orchestrator.addJobProcessor as any).mock.calls[0][1]._name).toBe(
       'sendDigest',

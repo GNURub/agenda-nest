@@ -5,7 +5,7 @@ import {
   Provider,
   Type,
 } from '@nestjs/common';
-import { DiscoveryModule } from '@nestjs/core';
+import { DiscoveryModule, Reflector } from '@nestjs/core';
 import { AgendaQueue } from './agenda.queue';
 import { AGENDA_MODULE_CONFIG } from './constants';
 import { agendaFactory } from './factories';
@@ -26,7 +26,13 @@ import {
 
 @Module({
   imports: [DiscoveryModule],
-  providers: [],
+  providers: [
+    Reflector,
+    {
+      provide: Reflector.name,
+      useExisting: Reflector,
+    },
+  ],
 })
 export class AgendaModule {
   static forRoot(config: AgendaModuleConfig): DynamicModule {

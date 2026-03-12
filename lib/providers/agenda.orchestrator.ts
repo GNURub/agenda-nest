@@ -1,13 +1,10 @@
 import {
   BeforeApplicationShutdown,
-  Inject,
   Injectable,
   Logger,
   OnApplicationBootstrap,
 } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
 import type { Agenda, Job } from 'agenda';
-import { NO_QUEUE_FOUND } from '../agenda.messages';
 import {
   AgendaModuleJobOptions,
   NonRepeatableJobOptions,
@@ -55,8 +52,6 @@ export class AgendaOrchestrator
 
   private readonly queues: Map<string, QueueRegistry> = new Map();
 
-  constructor(@Inject(ModuleRef) private readonly moduleRef: ModuleRef) { }
-
   async onApplicationBootstrap() {
     for await (const queue_ of this.queues) {
       const [, registry] = queue_;
@@ -82,9 +77,12 @@ export class AgendaOrchestrator
     }
   }
 
-  addQueue(queueName: string, queueToken: string, queueConfigToken: string) {
-    const queue = this.getQueue(queueName, queueToken);
-    const config = this.getQueueConfig(queueConfigToken);
+  addQueue(
+    queueName: string,
+    queueToken: string,
+    queue: Agenda,
+    config: AgendaQueueConfig,
+  ) {
     const namespace = getQueueNamespace(queueName, config.namespace);
 
     this.queues.set(queueToken, {
@@ -194,18 +192,4 @@ export class AgendaOrchestrator
     }
   }
 
-  private getQueue(queueName: string, queueToken: string): Agenda {
-    try {
-      return this.moduleRef.get<Agenda>(queueToken, { strict: false });
-    } catch (error) {
-      this.logger.error(NO_QUEUE_FOUND(queueName));
-      throw error;
-    }
-  }
-
-  private getQueueConfig(queueConfigToken: string): AgendaQueueConfig {
-    return this.moduleRef.get<AgendaQueueConfig>(queueConfigToken, {
-      strict: false,
-    });
-  }
 }

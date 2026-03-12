@@ -1,7 +1,9 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner } from '@nestjs/core';
 import { InstanceWrapper } from '@nestjs/core/injector/instance-wrapper';
-import type { Job } from 'agenda';
+import type { Agenda, Job } from 'agenda';
+import { NO_QUEUE_FOUND } from '../agenda.messages';
+import type { AgendaQueueConfig } from '../interfaces';
 import { getQueueConfigToken, getRawQueueToken } from '../utils';
 import { AgendaMetadataAccessor } from './agenda-metadata.accessor';
 import { AgendaOrchestrator } from './agenda.orchestrator';
@@ -23,15 +25,16 @@ export class AgendaExplorer implements OnModuleInit {
     private readonly metadataScanner: MetadataScanner,
     @Inject(AgendaOrchestrator)
     private readonly orchestrator: AgendaOrchestrator,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.explore();
   }
 
   private explore() {
-    this.discoveryService
-      .getProviders()
+    const providers = this.discoveryService.getProviders();
+
+    providers
       .filter((wrapper: InstanceWrapper) => {
         return this.metadataAccessor.isQueue(
           !wrapper.metatype || wrapper.inject
@@ -50,7 +53,19 @@ export class AgendaExplorer implements OnModuleInit {
 
         const queueConfigToken = getQueueConfigToken(queueName);
 
-        this.orchestrator.addQueue(queueName, queueToken, queueConfigToken);
+        const queue = this.getProviderInstance<Agenda>(providers, queueToken);
+
+        const queueConfig = this.getProviderInstance<AgendaQueueConfig>(
+          providers,
+          queueConfigToken,
+        );
+
+        this.orchestrator.addQueue(
+          queueName,
+          queueToken,
+          queue,
+          queueConfig,
+        );
 
         this.metadataScanner.scanFromPrototype(
           instance,
@@ -96,6 +111,20 @@ export class AgendaExplorer implements OnModuleInit {
           },
         );
       });
+  }
+
+  private getProviderInstance<T>(
+    providers: InstanceWrapper[],
+    token: string,
+  ): T {
+    const provider = providers.find((wrapper) => wrapper.token === token);
+
+    if (!provider?.instance) {
+      this.logger.error(NO_QUEUE_FOUND(token));
+      throw new Error(`Provider not found for token ${token}`);
+    }
+
+    return provider.instance as T;
   }
 
   private wrapFunctionInTryCatchBlocks(methodRef: Function, instance: object) {
