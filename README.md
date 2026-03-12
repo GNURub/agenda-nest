@@ -2,11 +2,13 @@
 
 <a href="https://www.npmjs.com/package/agenda-nest" target="_blank"><img src="https://img.shields.io/npm/v/agenda-nest.svg" alt="NPM Version" /></a>
 <a href="https://www.npmjs.com/package/agenda-nest" target="_blank"><img src="https://img.shields.io/npm/l/agenda-nest.svg" alt="Package License" /></a>
+
 </p>
 
 A lightweight job scheduler for NestJS
 
 ## Table of Contents
+
 - [Background](#background)
 - [Install](#install)
 - [Configure Agenda](#configure-agenda)
@@ -18,34 +20,40 @@ A lightweight job scheduler for NestJS
 
 ## Background
 
-Agenda Nest provides a NestJS module wrapper for [Agenda](https://github.com/agenda/agenda), a lightweight job scheduling library.  Heavily inspired by Nest's own Bull implementation, [@nestjs/bull](https://github.com/nestjs/bull), Agenda Nest provides a fully-featured implementation, complete with decorators for defining your jobs, processors and queue event listeners.  You may optionally, make use of Agenda Nest's Express controller to interface with your queues through HTTP.
+Agenda Nest provides a NestJS module wrapper for [Agenda](https://github.com/agenda/agenda), a lightweight job scheduling library. Heavily inspired by Nest's own Bull implementation, [@nestjs/bull](https://github.com/nestjs/bull), Agenda Nest provides a fully-featured implementation, complete with decorators for defining your jobs, processors and queue event listeners. You may optionally, make use of Agenda Nest's Express controller to interface with your queues through HTTP.
 
 ### Dependencies
 
-Agenda uses MongoDB to persist job data, so you'll need to have Mongo (or mongoose) installed on your system.
+Agenda v6 uses explicit backends. This package supports MongoDB, PostgreSQL, Redis, or a custom Agenda backend factory. Install the backend package you plan to use in your Nest application.
 
 ## Install
 
 ```bash
-npm install agenda-nest
+npm install agenda-nest agenda @agendajs/mongo-backend
 ```
+
+For PostgreSQL or Redis, replace the backend package accordingly.
 
 ## Configure Agenda
 
-As Agenda Nest is a wrapper for Agenda, it is configurable with same properties as the Agenda instance. Refer to [AgendaConfig](https://github.com/agenda/agenda/blob/master/lib/agenda/index.ts#L39) for the complete configuration type.
+Agenda Nest now uses Agenda v6 configuration. Root configuration combines Agenda runtime options with a backend definition. Queue configuration can override runtime options, `autoStart`, `collection` for MongoDB, `namespace`, and even the backend definition itself.
 
 ### Synchronously
 
 ```ts
-import { Module } from '@nestjs/common'
+import { Module } from '@nestjs/common';
 import { AgendaModule } from 'agenda-nest';
 
 @Module({
   imports: [
     AgendaModule.forRoot({
       processEvery: '3 minutes',
-      db: {
-        addresss: 'mongodb://localhost:27017',
+      backend: {
+        type: 'mongo',
+        options: {
+          address: 'mongodb://localhost:27017/agenda-nest',
+          ensureIndex: true,
+        },
       },
     }),
   ],
@@ -70,12 +78,15 @@ import configuration from './configuration';
     AgendaModule.forRootAsync({
       useFactory: (config: ConfigService) => ({
         processEvery: config.get('queues.processInterval'),
-        db: {
-          address: config.get('database.connectionString'),
+        backend: {
+          type: 'mongo',
+          options: {
+            address: config.get('database.connectionString'),
+          },
         },
       }),
       inject: [ConfigService],
-    })
+    }),
   ],
   providers: [Jobs],
 })
@@ -84,7 +95,7 @@ export class AppModule {}
 
 ## Configure queues
 
-Agenda Nest can manage multiple queues within your application.  To configure a new queue use `AgendaModule.registerQueue(queueName: string, config: AgendaConfig)`.  Queues will inherit the configuration provided to `Agenda.forRoot`, merging and overriding properties provided to the queue.
+Agenda Nest can manage multiple queues within your application. To configure a new queue use `AgendaModule.registerQueue(queueName: string, config?: AgendaQueueConfig)`. Queues inherit the root configuration, but each queue is isolated through an internal namespace and may override runtime options or even the backend definition.
 
 ### Synchronously
 
@@ -98,6 +109,7 @@ import { AgendaModule } from 'agenda-nest';
       processEvery: '5 minutes',
       autoStart: false, // default: true
       collection: 'notificationsqueue', // default: notifications-queue (`${queueName}-queue`)
+      namespace: 'notifications', // default: queue name
     }),
   ],
 })
@@ -127,7 +139,7 @@ export class NotificationsModule {}
 
 ## Job processors
 
-Job processors are methods defined on a class declared with the `@Queue(name: string)` decorator.  The queue name will be used to create the MongoDB collection, formatted as `"{queue Name}-queue"`, for each queue. You can also specify your own collection name.
+Job processors are methods defined on a class declared with the `@Queue(name: string)` decorator. Queue names are internally namespaced so multiple queues can safely define the same job names even when they share the same backend.
 
 ```js
 import { Queue } from 'agenda-nest';
@@ -137,19 +149,19 @@ import { Queue } from 'agenda-nest';
 export class NotificationsQueue {}
 
 // with custom collection name
-@Queue('notifications', { collection: 'notificationsqueue' })
+@Queue('notifications')
 export class NotificationsQueue {}
 ```
 
-To **define**, but not schedule, a job on the queue, use the `@Define()` decorator as shown below.  To define a scheduled job, see [Job schedulers](#job-schedulers).
+To **define**, but not schedule, a job on the queue, use the `@Define()` decorator as shown below. To define a scheduled job, see [Job schedulers](#job-schedulers).
 
 ```js
-import { Define, Queue, Job } from 'agenda-nest';
+import { Define, Queue } from 'agenda-nest';
 
 @Queue('notifications')
 export class NotificationsQueue {
   @Define()
-  sendNotification(job: Job) {}
+  async sendNotification() {}
 }
 ```
 
@@ -162,26 +174,25 @@ To define and schedule a job on the queue, use one of the `@Every()`, `@Schedule
 Defines a job to run at the given interval
 
 ```js
-import { Every, Queue, Job } from 'agenda-nest';
+import { Every, Queue } from 'agenda-nest';
 
 @Queue('notifications')
 export class NotificationsQueue {
   @Every({ name: 'send notifications', interval: '15 minutes' })
-  async sendNotifications(job: Job) {
+  async sendNotifications() {
     const users = await User.doSomethingReallyIntensive();
-    sendNotification(users, "Welcome!");
+    sendNotification(users, 'Welcome!');
   }
 }
 
 @Queue('reports')
 export class ReportsQueue {
   @Every('15 minutes')
-  async printAnalyticsReport(job: Job) {
+  async printAnalyticsReport() {
     const users = await User.doSomethingReallyIntensive();
     processUserData(users);
   }
 }
-
 ```
 
 ### `@Schedule(nameOrOptions: string | JobOptions)`
@@ -189,26 +200,25 @@ export class ReportsQueue {
 Schedules a job to run once at the given time.
 
 ```js
-import { Schedule, Queue, Job } from 'agenda-nest';
+import { Schedule, Queue } from 'agenda-nest';
 
 @Queue('notifications')
 export class NotificationsQueue {
-  @Scheduler({ name: 'send notifications', when: 'tomorrow at noon' })
-  async sendNotifications(job: Job) {
+  @Schedule({ name: 'send notifications', when: 'tomorrow at noon' })
+  async sendNotifications() {
     const users = await User.doSomethingReallyIntensive();
-    sendNotification(users, "Welcome!");
+    sendNotification(users, 'Welcome!');
   }
 }
 
 @Queue('reports')
 export class ReportsQueue {
   @Schedule('tomorrow at noon')
-  async printAnalyticsReport(job: Job) {
+  async printAnalyticsReport() {
     const users = await User.doSomethingReallyIntensive();
     processUserData(users);
   }
 }
-
 ```
 
 ### `@Now(name?: string)`
@@ -216,21 +226,20 @@ export class ReportsQueue {
 Schedules a job to run once immediately.
 
 ```js
-import { Now, Queue, Job } from 'agenda-nest';
+import { Now, Queue } from 'agenda-nest';
 
 @Queue('dance')
 export class DanceQueue {
   @Now()
-  async doTheHokeyPokey(job: Job) {
+  async doTheHokeyPokey() {
     hokeyPokey();
   }
 
   @Now('do the cha-cha')
-  async doTheChaCha(job: Job) {
+  async doTheChaCha() {
     chaCha();
   }
 }
-
 ```
 
 ## Event Listeners
@@ -257,7 +266,7 @@ export class JobsQueue {
 An instance of an agenda will emit the queue events listed below. Use the corresponding method decorator to listen for and handle each event.
 
 | Event   | Listener          |                                                                                |
-|:--------|:------------------|:-------------------------------------------------------------------------------|
+| :------ | :---------------- | :----------------------------------------------------------------------------- |
 | `ready` | `@OnQueueReady()` | called when Agenda mongo connection is successfully opened and indices created |
 | `error` | `@OnQueueError()` | called when Agenda mongo connection process has thrown an error                |
 
@@ -266,7 +275,7 @@ An instance of an agenda will emit the queue events listed below. Use the corres
 An instance of an agenda will emit the job events listed below. Use the corresponding method decorator to listen for and handle each event.
 
 | Event                             | Listener                        |                                                                   |
-|:----------------------------------|:--------------------------------|:------------------------------------------------------------------|
+| :-------------------------------- | :------------------------------ | :---------------------------------------------------------------- |
 | `start` or `start:job name`       | `@OnJobStart(name?: string)`    | called just before a job starts                                   |
 | `complete` or `complete:job name` | `@OnJobComplete(name?: string)` | called when a job finishes, regardless of if it succeeds or fails |
 | `success` or `success:job name`   | `@OnJobSuccess(name?: string)`  | called when a job finishes successfully                           |
@@ -274,20 +283,29 @@ An instance of an agenda will emit the job events listed below. Use the correspo
 
 ## Manually working with a queue
 
-You can access any registered queue using the `@InjectQueue(queueName)` decorator, which will inject the instance of `Agenda` for the given queue name. See Agenda's [documentation](https://github.com/agenda/agenda#table-of-contents) for the available API.
+You can access any registered queue using the `@InjectQueue(queueName)` decorator, which injects an `AgendaQueue` facade scoped to that queue. The facade namespaces job names and named events automatically, while still exposing `getRawAgenda()` when you need the underlying Agenda instance.
 
 ```js
+import { AgendaQueue, InjectQueue } from 'agenda-nest';
+
 @Injectable()
 export class NotificationsService {
-  constructor(@InjectQueue('notificiations') private queue: Agenda) {}
+  constructor(@InjectQueue('notifications') private queue: AgendaQueue) {}
 
   async scheduleNotification(sendAt: string) {
-    await this.queue.schedule('tomorrow at noon', 'sendNotification', {
+    await this.queue.schedule(sendAt, 'sendNotification', {
       to: 'user@example.com',
     });
   }
 }
 ```
+
+## Migration Notes
+
+- `db` and `mongo` root configuration were removed in favor of `backend`.
+- Agenda v6 is ESM-only; this package now publishes dual ESM/CJS builds and loads Agenda dynamically.
+- `@InjectQueue()` now injects `AgendaQueue` instead of the raw `Agenda` instance.
+- Multiple queues are isolated through internal job namespacing, so duplicate job names across queues are supported for every backend.
 
 ## License
 

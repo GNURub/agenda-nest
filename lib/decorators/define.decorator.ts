@@ -1,9 +1,9 @@
 import { applyDecorators, SetMetadata } from '@nestjs/common';
-import { DefineOptions } from 'agenda';
-import { JOB_PROCESSOR_TYPE, AGENDA_JOB_OPTIONS } from '../constants';
+import { AGENDA_JOB_OPTIONS, JOB_PROCESSOR_TYPE } from '../constants';
 import { JobProcessorType } from '../enums';
+import { AgendaDefineOptions } from '../interfaces';
 
-type NameAndDefineOptions = DefineOptions & Record<'name', string>;
+type NameAndDefineOptions = AgendaDefineOptions & Record<'name', string>;
 
 export function Define(name?: string): MethodDecorator;
 export function Define(options?: NameAndDefineOptions): MethodDecorator;

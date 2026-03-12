@@ -5,14 +5,9 @@ const config: Config.InitialOptions = {
   rootDir: './',
   testRegex: '/lib/.*\\.(test|spec).(ts|tsx|js)$',
   transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+    '^.+.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   testEnvironment: 'node',
-  globals: {
-    'ts-jest': {
-      tsconfig: '<rootDir>/tsconfig.spec.json',
-    },
-  },
 };
 
 export default config;

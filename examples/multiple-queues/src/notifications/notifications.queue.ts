@@ -1,9 +1,8 @@
-import Agenda from 'agenda';
-import { Every, InjectQueue, OnQueueReady, Queue } from 'agenda-nest';
+import { AgendaQueue, Every, InjectQueue, Queue } from 'agenda-nest';
 
 @Queue('notifications')
 export class NotificationsQueue {
-  constructor(@InjectQueue('notifications') queue: Agenda) {
+  constructor(@InjectQueue('notifications') queue: AgendaQueue) {
     queue.on('complete:sendNotification', () => {
       console.log('notification sent');
     });

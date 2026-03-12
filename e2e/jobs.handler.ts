@@ -1,18 +1,22 @@
 import {
-  Every,
-  Schedule,
-  Now,
-  OnQueueReady,
-  OnJobStart,
-  OnJobComplete,
-  OnJobSuccess,
-  OnJobFail,
+  AgendaQueue,
   Define,
+  Every,
+  InjectQueue,
+  Now,
+  OnJobComplete,
+  OnJobFail,
+  OnJobStart,
+  OnJobSuccess,
+  OnQueueReady,
   Queue,
+  Schedule,
 } from '../lib';
 
 @Queue('jobs')
 export class JobsHandler {
+  constructor(@InjectQueue('jobs') private readonly queue: AgendaQueue) {}
+
   handled: string[] = [];
 
   @Define('defined job')
@@ -41,8 +45,9 @@ export class JobsHandler {
   }
 
   @OnQueueReady()
-  onQueueReady() {
+  async onQueueReady() {
     this.handled.push(this.onQueueReady.name);
+    await this.queue.now('defined job');
   }
 
   @OnJobStart()

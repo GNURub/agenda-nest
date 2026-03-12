@@ -6,6 +6,7 @@ import {
   Type,
 } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
+import { AgendaQueue } from './agenda.queue';
 import { AGENDA_MODULE_CONFIG } from './constants';
 import { agendaFactory } from './factories';
 import {
@@ -16,8 +17,12 @@ import {
 } from './interfaces';
 import { AgendaExplorer, AgendaMetadataAccessor } from './providers';
 import { AgendaOrchestrator } from './providers/agenda.orchestrator';
-import { DatabaseService } from './providers/database.service';
-import { getQueueConfigToken, getQueueToken } from './utils';
+import {
+  getQueueConfigToken,
+  getQueueNamespace,
+  getQueueToken,
+  getRawQueueToken,
+} from './utils';
 
 @Module({
   imports: [DiscoveryModule],
@@ -30,7 +35,6 @@ export class AgendaModule {
         provide: AGENDA_MODULE_CONFIG,
         useValue: config,
       },
-      DatabaseService,
       AgendaMetadataAccessor,
       AgendaExplorer,
       AgendaOrchestrator,
@@ -58,7 +62,6 @@ export class AgendaModule {
       imports: config.imports || [],
       providers: [
         ...providers,
-        DatabaseService,
         AgendaMetadataAccessor,
         AgendaExplorer,
         AgendaOrchestrator,
@@ -73,6 +76,7 @@ export class AgendaModule {
     config: AgendaQueueConfig = {},
   ): DynamicModule {
     const queueConfigToken = getQueueConfigToken(name);
+    const rawQueueToken = getRawQueueToken(name);
 
     const providers = [
       {
@@ -80,9 +84,21 @@ export class AgendaModule {
         useValue: { autoStart: true, ...config },
       },
       {
-        provide: getQueueToken(name),
-        useFactory: agendaFactory,
+        provide: rawQueueToken,
+        useFactory: (
+          queueConfig: AgendaQueueConfig,
+          rootConfig: AgendaModuleConfig,
+        ) => agendaFactory(name, queueConfig, rootConfig),
         inject: [queueConfigToken, AGENDA_MODULE_CONFIG],
+      },
+      {
+        provide: getQueueToken(name),
+        useFactory: (agenda: any, queueConfig: AgendaQueueConfig) =>
+          new AgendaQueue(
+            agenda,
+            getQueueNamespace(name, queueConfig.namespace),
+          ),
+        inject: [rawQueueToken, queueConfigToken],
       },
     ];
 
@@ -98,12 +114,26 @@ export class AgendaModule {
     config: AgendaModuleAsyncConfig<AgendaQueueConfig>,
   ): DynamicModule {
     const queueConfigToken = getQueueConfigToken(name);
+    const rawQueueToken = getRawQueueToken(name);
 
     const providers = [
       {
-        provide: getQueueToken(name),
-        useFactory: agendaFactory,
+        provide: rawQueueToken,
+        useFactory: (
+          queueConfig: AgendaQueueConfig,
+          rootConfig: AgendaModuleConfig,
+        ) =>
+          agendaFactory(name, { autoStart: true, ...queueConfig }, rootConfig),
         inject: [queueConfigToken, AGENDA_MODULE_CONFIG],
+      },
+      {
+        provide: getQueueToken(name),
+        useFactory: (agenda: any, queueConfig: AgendaQueueConfig) =>
+          new AgendaQueue(
+            agenda,
+            getQueueNamespace(name, queueConfig.namespace),
+          ),
+        inject: [rawQueueToken, queueConfigToken],
       },
       ...this.createAsyncProviders<AgendaQueueConfig>(queueConfigToken, config),
     ];

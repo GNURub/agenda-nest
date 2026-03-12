@@ -13,7 +13,7 @@ import { ReportsQueue } from './reports.queue';
           autoStart: autoStart === 'true',
         };
       },
-      inject: [ConfigService]
+      inject: [ConfigService],
     }),
   ],
   providers: [ReportsQueue],

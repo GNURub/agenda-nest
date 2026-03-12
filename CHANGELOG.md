@@ -2,48 +2,56 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## [2.1.0](https://github.com/jongolden/agenda-nest/compare/v2.0.0...v2.1.0) (2023-04-11)
+## Unreleased
 
+### Breaking Changes
+
+- migrate the package to Agenda v6 and explicit backend configuration
+- replace raw `Agenda` injection with the queue-scoped `AgendaQueue` facade
+- publish dual CommonJS and ESM builds while loading Agenda dynamically at runtime
 
 ### Features
 
-* **examples:** update usage example ([ecf44be](https://github.com/jongolden/agenda-nest/commit/ecf44be9b3a877b84500f683c0a44dadc717e94f))
-* support custom collection name for queue ([#25](https://github.com/jongolden/agenda-nest/issues/25)) ([#26](https://github.com/jongolden/agenda-nest/issues/26)) ([25e22f5](https://github.com/jongolden/agenda-nest/commit/25e22f5e866abb3099067e7bfd775a767f4ecec5))
+- support generic Agenda v6 backends per queue, including MongoDB, PostgreSQL, Redis, and custom backend factories
+- isolate queues through internal job namespacing so identical job names can coexist across queues
+- add unit and integration tests for facade behavior, queue wiring, and collection/backend propagation
+
+## [2.1.0](https://github.com/jongolden/agenda-nest/compare/v2.0.0...v2.1.0) (2023-04-11)
+
+### Features
+
+- **examples:** update usage example ([ecf44be](https://github.com/jongolden/agenda-nest/commit/ecf44be9b3a877b84500f683c0a44dadc717e94f))
+- support custom collection name for queue ([#25](https://github.com/jongolden/agenda-nest/issues/25)) ([#26](https://github.com/jongolden/agenda-nest/issues/26)) ([25e22f5](https://github.com/jongolden/agenda-nest/commit/25e22f5e866abb3099067e7bfd775a767f4ecec5))
 
 ## [1.3.0](https://github.com/jongolden/agenda-nest/compare/v1.2.1...v1.3.0) (2023-03-05)
 
-
 ### Features
 
-* support async queue registration ([#22](https://github.com/jongolden/agenda-nest/issues/22)) ([03ca996](https://github.com/jongolden/agenda-nest/commit/03ca9969b6a93655ac99bc0df718a61263d4384d))
+- support async queue registration ([#22](https://github.com/jongolden/agenda-nest/issues/22)) ([03ca996](https://github.com/jongolden/agenda-nest/commit/03ca9969b6a93655ac99bc0df718a61263d4384d))
 
 ### [1.2.1](https://github.com/jongolden/agenda-nest/compare/v1.2.0...v1.2.1) (2023-01-31)
 
 ## [1.2.0](https://github.com/jongolden/agenda-nest/compare/v1.1.2...v1.2.0) (2022-10-28)
 
-
 ### Features
 
-* support nest 9 ([dd9a35c](https://github.com/jongolden/agenda-nest/commit/dd9a35c3cb4e49fdd75ec1e7057bd7e419b0a7f8))
-
+- support nest 9 ([dd9a35c](https://github.com/jongolden/agenda-nest/commit/dd9a35c3cb4e49fdd75ec1e7057bd7e419b0a7f8))
 
 ### Bug Fixes
 
-* add Inject decorator to agenda metadata accessor constructor ([#14](https://github.com/jongolden/agenda-nest/issues/14)) ([4149cc9](https://github.com/jongolden/agenda-nest/commit/4149cc92fedf8eed3921af4233d94eab93a1d941))
+- add Inject decorator to agenda metadata accessor constructor ([#14](https://github.com/jongolden/agenda-nest/issues/14)) ([4149cc9](https://github.com/jongolden/agenda-nest/commit/4149cc92fedf8eed3921af4233d94eab93a1d941))
 
 ## [1.2.0-0](https://github.com/jongolden/agenda-nest/compare/v1.1.2...v1.2.0-0) (2022-10-27)
 
-
 ### Features
 
-* support nest 9 ([e4e5317](https://github.com/jongolden/agenda-nest/commit/e4e53177354cae43d20411b902b2d112855a99e9))
+- support nest 9 ([e4e5317](https://github.com/jongolden/agenda-nest/commit/e4e53177354cae43d20411b902b2d112855a99e9))
 
 ### [1.1.2](https://github.com/jongolden/agenda-nest/compare/v1.1.1...v1.1.2) (2022-08-05)
 
-
 ### Bug Fixes
 
-* jobs with argument not unlocking ([e2d4068](https://github.com/jongolden/agenda-nest/commit/e2d4068a3b0fad2ebd55d1e8e4bb669b71754ecb))
+- jobs with argument not unlocking ([e2d4068](https://github.com/jongolden/agenda-nest/commit/e2d4068a3b0fad2ebd55d1e8e4bb669b71754ecb))
 
 ### [1.1.1](https://github.com/jongolden/agenda-nest/compare/v1.1.0...v1.1.1) (2022-07-30)
 
@@ -51,59 +59,51 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## [1.1.0-0](https://github.com/jongolden/agenda-nest/compare/v1.0.1...v1.1.0-0) (2022-07-29)
 
-
 ### Features
 
-* support disabling auto start of queue ([#11](https://github.com/jongolden/agenda-nest/issues/11)) ([db3090e](https://github.com/jongolden/agenda-nest/commit/db3090ef6983cbe5cbdd30efd03de6b60817c46a))
-
+- support disabling auto start of queue ([#11](https://github.com/jongolden/agenda-nest/issues/11)) ([db3090e](https://github.com/jongolden/agenda-nest/commit/db3090ef6983cbe5cbdd30efd03de6b60817c46a))
 
 ### Bug Fixes
 
-* `done` not passed to processors ([#10](https://github.com/jongolden/agenda-nest/issues/10)) ([4aaa67c](https://github.com/jongolden/agenda-nest/commit/4aaa67cd3fd5d01141caaab9d3e80d483069a462)), closes [#8](https://github.com/jongolden/agenda-nest/issues/8)
-* disconnect from database on shutdown ([#5](https://github.com/jongolden/agenda-nest/issues/5)) ([86a106b](https://github.com/jongolden/agenda-nest/commit/86a106b37e1d599181d41c6b13413db2ad71e611)), closes [#4](https://github.com/jongolden/agenda-nest/issues/4)
+- `done` not passed to processors ([#10](https://github.com/jongolden/agenda-nest/issues/10)) ([4aaa67c](https://github.com/jongolden/agenda-nest/commit/4aaa67cd3fd5d01141caaab9d3e80d483069a462)), closes [#8](https://github.com/jongolden/agenda-nest/issues/8)
+- disconnect from database on shutdown ([#5](https://github.com/jongolden/agenda-nest/issues/5)) ([86a106b](https://github.com/jongolden/agenda-nest/commit/86a106b37e1d599181d41c6b13413db2ad71e611)), closes [#4](https://github.com/jongolden/agenda-nest/issues/4)
 
 ### [1.0.1](https://github.com/jongolden/agenda-nest/compare/v1.0.0...v1.0.1) (2022-07-16)
 
-
 ### Bug Fixes
 
-* peerDependencies field ([059c52f](https://github.com/jongolden/agenda-nest/commit/059c52f00f1fe26d03d0ef1f08f2d41b7d863f7d))
+- peerDependencies field ([059c52f](https://github.com/jongolden/agenda-nest/commit/059c52f00f1fe26d03d0ef1f08f2d41b7d863f7d))
 
 ## [1.0.0](https://github.com/jongolden/agenda-nestjs/compare/v0.0.4...v1.0.0) (2022-07-09)
 
-
 ### Features
 
-* enable multiple queues ([#3](https://github.com/jongolden/agenda-nestjs/issues/3)) ([ce2f869](https://github.com/jongolden/agenda-nestjs/commit/ce2f869d58a7afa13b34a9c9d5d11486a7a2d831))
+- enable multiple queues ([#3](https://github.com/jongolden/agenda-nestjs/issues/3)) ([ce2f869](https://github.com/jongolden/agenda-nestjs/commit/ce2f869d58a7afa13b34a9c9d5d11486a7a2d831))
 
 ### [0.0.5-2](https://github.com/jongolden/agenda-nestjs/compare/v0.0.5-1...v0.0.5-2) (2022-06-22)
 
-
 ### Features
 
-* internal manage db connection ([f09142f](https://github.com/jongolden/agenda-nestjs/commit/f09142f320bf2251ff262d5865d5f485bf8ca581))
+- internal manage db connection ([f09142f](https://github.com/jongolden/agenda-nestjs/commit/f09142f320bf2251ff262d5865d5f485bf8ca581))
 
 ### [0.0.5-1](https://github.com/jongolden/agenda-nestjs/compare/v0.0.5-0...v0.0.5-1) (2022-06-21)
 
 ### [0.0.5-0](https://github.com/jongolden/agenda-nestjs/compare/v0.0.4...v0.0.5-0) (2022-06-21)
 
-
 ### Features
 
-* enable multiple queues ([6c5a20a](https://github.com/jongolden/agenda-nestjs/commit/6c5a20afd661d668ce4694b6b6b6be4bac0ceec2))
+- enable multiple queues ([6c5a20a](https://github.com/jongolden/agenda-nestjs/commit/6c5a20afd661d668ce4694b6b6b6be4bac0ceec2))
 
 ### 0.0.4 (2022-06-20)
 
-
 ### Features
 
-* initial development ([#1](https://github.com/jongolden/agenda-nestjs/issues/1)) ([cee8b8e](https://github.com/jongolden/agenda-nestjs/commit/cee8b8e9f45e6cd6cb2b3da5829446e21b29ebe7))
+- initial development ([#1](https://github.com/jongolden/agenda-nestjs/issues/1)) ([cee8b8e](https://github.com/jongolden/agenda-nestjs/commit/cee8b8e9f45e6cd6cb2b3da5829446e21b29ebe7))
 
 ### [0.0.3](https://github.com/jongolden/agenda-nestjs/compare/v0.0.2...v0.0.3) (2022-06-19)
 
 ### 0.0.1 (2022-06-18)
 
-
 ### Features
 
-* initial development ([55cbc11](https://github.com/jongolden/agenda-nest/commit/55cbc1199fe780aa3cc6c18d5e64958483927f37))
+- initial development ([55cbc11](https://github.com/jongolden/agenda-nest/commit/55cbc1199fe780aa3cc6c18d5e64958483927f37))

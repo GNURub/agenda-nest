@@ -1,10 +1,14 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner } from '@nestjs/core';
 import { InstanceWrapper } from '@nestjs/core/injector/instance-wrapper';
-import { Processor } from 'agenda';
-import { getQueueConfigToken, getQueueToken } from '../utils';
+import type { Job } from 'agenda';
+import { getQueueConfigToken, getRawQueueToken } from '../utils';
 import { AgendaMetadataAccessor } from './agenda-metadata.accessor';
 import { AgendaOrchestrator } from './agenda.orchestrator';
+
+type AgendaProcessor =
+  | ((job: Job) => Promise<void>)
+  | ((job: Job, done: (error?: Error) => void) => void);
 
 @Injectable()
 export class AgendaExplorer implements OnModuleInit {
@@ -38,7 +42,7 @@ export class AgendaExplorer implements OnModuleInit {
           instance.constructor || metatype,
         );
 
-        const queueToken = getQueueToken(queueName);
+        const queueToken = getRawQueueToken(queueName);
 
         const queueConfigToken = getQueueConfigToken(queueName);
 
@@ -57,7 +61,7 @@ export class AgendaExplorer implements OnModuleInit {
               const jobOptions =
                 this.metadataAccessor.getJobProcessorMetadata(methodRef);
 
-              const jobProcessor: Processor & Record<'_name', string> =
+              const jobProcessor: AgendaProcessor & Record<'_name', string> =
                 this.wrapFunctionInTryCatchBlocks(methodRef, instance);
 
               this.orchestrator.addJobProcessor(

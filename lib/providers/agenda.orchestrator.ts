@@ -5,7 +5,7 @@ import {
   OnApplicationBootstrap,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
-import Agenda, { AgendaConfig, Job, Processor } from 'agenda';
+import type { Agenda, Job } from 'agenda';
 import { NO_QUEUE_FOUND } from '../agenda.messages';
 import {
   AgendaModuleJobOptions,
@@ -14,10 +14,18 @@ import {
 } from '../decorators';
 import { JobProcessorType } from '../enums';
 import { AgendaQueueConfig } from '../interfaces';
-import { DatabaseService } from './database.service';
+import {
+  getQualifiedEventName,
+  getQualifiedJobName,
+  getQueueNamespace,
+} from '../utils';
+
+type AgendaProcessor =
+  | ((job: Job) => Promise<void>)
+  | ((job: Job, done: (error?: Error) => void) => void);
 
 type JobProcessorConfig = {
-  handler: Processor;
+  handler: AgendaProcessor;
   type: JobProcessorType;
   options: RepeatableJobOptions | NonRepeatableJobOptions;
   useCallback: boolean;
@@ -25,11 +33,18 @@ type JobProcessorConfig = {
 
 export type EventListener = (...args: any[]) => void;
 
+type EventListenerConfig = {
+  listener: EventListener;
+  eventName: string;
+  jobName?: string;
+};
+
 type QueueRegistry = {
   config: AgendaQueueConfig;
   processors: Map<string, JobProcessorConfig>;
-  listeners: Map<string, EventListener>;
+  listeners: EventListenerConfig[];
   queue: Agenda;
+  namespace: string;
 };
 
 @Injectable()
@@ -40,33 +55,22 @@ export class AgendaOrchestrator
 
   private readonly queues: Map<string, QueueRegistry> = new Map();
 
-  constructor(
-    private readonly moduleRef: ModuleRef,
-    private readonly database: DatabaseService,
-  ) {}
+  constructor(private readonly moduleRef: ModuleRef) {}
 
   async onApplicationBootstrap() {
-    await this.database.connect();
-
     for await (const queue_ of this.queues) {
-      const [queueToken, registry] = queue_;
+      const [, registry] = queue_;
 
       const { config, queue } = registry;
 
+      this.defineJobProcessors(queue, registry);
+      await this.scheduleJobs(queue, registry);
+
       this.attachEventListeners(queue, registry);
 
-      queue.mongo(
-        this.database.getConnection(),
-        config.collection || queueToken,
-      );
-
-      if (config.autoStart) {
+      if (config.autoStart !== false) {
         await queue.start();
       }
-
-      this.defineJobProcessors(queue, registry);
-
-      await this.scheduleJobs(queue, registry);
     }
   }
 
@@ -76,25 +80,25 @@ export class AgendaOrchestrator
 
       await config.queue.stop();
     }
-
-    await this.database.disconnect();
   }
 
   addQueue(queueName: string, queueToken: string, queueConfigToken: string) {
     const queue = this.getQueue(queueName, queueToken);
     const config = this.getQueueConfig(queueConfigToken);
+    const namespace = getQueueNamespace(queueName, config.namespace);
 
     this.queues.set(queueToken, {
       queue,
       config,
+      namespace,
       processors: new Map(),
-      listeners: new Map(),
+      listeners: [],
     });
   }
 
   addJobProcessor(
     queueToken: string,
-    processor: Processor & Record<'_name', string>,
+    processor: AgendaProcessor & Record<'_name', string>,
     options: AgendaModuleJobOptions,
     type: JobProcessorType,
     useCallback: boolean,
@@ -115,14 +119,29 @@ export class AgendaOrchestrator
     eventName: string,
     jobName?: string,
   ) {
-    const key = jobName ? `${eventName}:${jobName}` : eventName;
-
-    this.queues.get(queueToken)?.listeners.set(key, listener);
+    this.queues.get(queueToken)?.listeners.push({
+      listener,
+      eventName,
+      jobName,
+    });
   }
 
   private attachEventListeners(agenda: Agenda, registry: QueueRegistry) {
-    registry.listeners.forEach((listener: EventListener, eventName: string) => {
-      agenda.on(eventName, listener);
+    registry.listeners.forEach(({ listener, eventName, jobName }) => {
+      if (eventName === 'ready') {
+        agenda.ready.then(() => listener());
+        return;
+      }
+
+      const qualifiedEventName = jobName
+        ? getQualifiedEventName(registry.namespace, `${eventName}:${jobName}`)
+        : eventName;
+
+      (
+        agenda as unknown as {
+          on(eventName: string, listener: EventListener): Agenda;
+        }
+      ).on(qualifiedEventName, listener);
     });
   }
 
@@ -130,13 +149,19 @@ export class AgendaOrchestrator
     registry.processors.forEach(
       (jobConfig: JobProcessorConfig, jobName: string) => {
         const { options, handler, useCallback } = jobConfig;
+        const qualifiedJobName = getQualifiedJobName(
+          registry.namespace,
+          jobName,
+        );
 
         if (useCallback) {
-          agenda.define(jobName, options, (job: Job, done: () => void) =>
-            handler(job, done),
+          (agenda as any).define(
+            qualifiedJobName,
+            (job: Job, done: () => void) => handler(job, done),
+            options,
           );
         } else {
-          agenda.define(jobName, options, handler);
+          (agenda as any).define(qualifiedJobName, handler, options);
         }
       },
     );
@@ -147,22 +172,24 @@ export class AgendaOrchestrator
       const [jobName, jobConfig] = processor;
 
       const { type, options } = jobConfig;
+      const qualifiedJobName = getQualifiedJobName(registry.namespace, jobName);
 
       if (type === JobProcessorType.EVERY) {
         await agenda.every(
           (options as RepeatableJobOptions).interval,
-          jobName,
+          qualifiedJobName,
           {},
           options,
         );
       } else if (type === JobProcessorType.SCHEDULE) {
         await agenda.schedule(
           (options as NonRepeatableJobOptions).when,
-          jobName,
+          qualifiedJobName,
           {},
+          options,
         );
       } else if (type === JobProcessorType.NOW) {
-        await agenda.now(jobName, {});
+        await agenda.now(qualifiedJobName, {});
       }
     }
   }
@@ -176,8 +203,8 @@ export class AgendaOrchestrator
     }
   }
 
-  private getQueueConfig(queueConfigToken: string): AgendaConfig {
-    return this.moduleRef.get<AgendaConfig>(queueConfigToken, {
+  private getQueueConfig(queueConfigToken: string): AgendaQueueConfig {
+    return this.moduleRef.get<AgendaQueueConfig>(queueConfigToken, {
       strict: false,
     });
   }
