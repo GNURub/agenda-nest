@@ -18,4 +18,4 @@ import { ReportsQueue } from './reports.queue';
   ],
   providers: [ReportsQueue],
 })
-export class ReportsModule { }
+export class ReportsModule {}

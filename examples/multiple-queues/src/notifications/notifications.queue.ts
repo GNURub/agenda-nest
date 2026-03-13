@@ -1,9 +1,4 @@
-import {
-  AgendaQueue,
-  Every,
-  InjectQueue,
-  Queue,
-} from '@gnurub/agenda-nest';
+import { AgendaQueue, Every, InjectQueue, Queue } from '@gnurub/agenda-nest';
 
 @Queue('notifications')
 export class NotificationsQueue {

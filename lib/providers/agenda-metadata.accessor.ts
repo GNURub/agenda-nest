@@ -12,7 +12,7 @@ import { JobProcessorType } from '../enums';
 
 @Injectable()
 export class AgendaMetadataAccessor {
-  constructor(@Inject(Reflector) private readonly reflector: Reflector) { }
+  constructor(@Inject(Reflector) private readonly reflector: Reflector) {}
 
   isQueue(target: Type<any> | Function): boolean {
     return !!this.reflector.get(AGENDA_MODULE_QUEUE, target);

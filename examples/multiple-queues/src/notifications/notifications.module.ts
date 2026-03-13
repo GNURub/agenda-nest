@@ -12,7 +12,7 @@ import { NotificationsQueue } from './notifications.queue';
   providers: [NotificationsQueue],
 })
 export class NotificationsModule implements OnApplicationBootstrap {
-  constructor(@Inject(ModuleRef) private readonly moduleRef: ModuleRef) { }
+  constructor(@Inject(ModuleRef) private readonly moduleRef: ModuleRef) {}
 
   async onApplicationBootstrap() {
     const queue = this.moduleRef.get<AgendaQueue>('notifications-queue', {

@@ -131,4 +131,78 @@ describe('AgendaModule MongoDB backend (e2e)', () => {
       failCount: undefined,
     });
   }, 30_000);
+
+  it('executes jobs scheduled one minute ahead against MongoDB with the expected payload', async () => {
+    const isolatedMongoServer = await MongoMemoryServer.create();
+    const isolatedTestingModule = await Test.createTestingModule({
+      imports: [
+        AgendaModule.forRoot({
+          processEvery: 50,
+          backend: {
+            type: 'mongo',
+            options: {
+              address: isolatedMongoServer.getUri(),
+              ensureIndex: false,
+            },
+          },
+        }),
+        AgendaModule.registerQueue('jobs'),
+      ],
+      providers: [MongoJobsHandler],
+    }).compile();
+
+    await isolatedTestingModule.init();
+
+    const isolatedRawAgenda = isolatedTestingModule.get<any>('jobs-queue:raw', {
+      strict: false,
+    });
+    const isolatedJobsHandler = isolatedTestingModule.get(MongoJobsHandler);
+    const payload: EmailPayload = {
+      to: 'scheduled@example.com',
+      nested: { attempt: 3 },
+    };
+
+    await isolatedRawAgenda.ready;
+
+    try {
+      const scheduledAt = Date.now() + 60_000;
+
+      await isolatedJobsHandler.scheduleInFuture(
+        payload,
+        new Date(scheduledAt),
+      );
+
+      expect(isolatedJobsHandler.processedJobs).toHaveLength(0);
+      expect(isolatedJobsHandler.successEvents).toHaveLength(0);
+
+      await waitFor(
+        () => isolatedJobsHandler.processedJobs.length === 1,
+        90_000,
+        200,
+      );
+      await waitFor(
+        () => isolatedJobsHandler.successEvents.length === 1,
+        5_000,
+        100,
+      );
+
+      const observedAt = Date.now();
+
+      expect(observedAt).toBeGreaterThanOrEqual(scheduledAt - 1_000);
+      expect(observedAt - scheduledAt).toBeLessThan(20_000);
+      expect(isolatedJobsHandler.processedJobs[0]).toEqual({
+        name: 'jobs::send-email',
+        data: payload,
+        failCount: undefined,
+      });
+      expect(isolatedJobsHandler.successEvents[0]).toEqual({
+        name: 'jobs::send-email',
+        data: payload,
+        failCount: undefined,
+      });
+    } finally {
+      await isolatedTestingModule.close();
+      await isolatedMongoServer.stop();
+    }
+  }, 95_000);
 });

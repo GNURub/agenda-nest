@@ -10,12 +10,12 @@ export type AgendaSortDirection = 'asc' | 'desc' | 1 | -1;
 
 export type MongoBackendConfig = (
   | {
-    mongo: unknown;
-  }
+      mongo: unknown;
+    }
   | {
-    address: string;
-    options?: Record<string, unknown>;
-  }
+      address: string;
+      options?: Record<string, unknown>;
+    }
 ) & {
   collection?: string;
   ensureIndex?: boolean;
@@ -68,24 +68,24 @@ export type AgendaBackendFactory = (
 
 export type AgendaBuiltinBackendDefinition =
   | {
-    type: 'mongo';
-    options: MongoBackendConfig;
-  }
+      type: 'mongo';
+      options: MongoBackendConfig;
+    }
   | {
-    type: 'postgres';
-    options: PostgresBackendConfig;
-  }
+      type: 'postgres';
+      options: PostgresBackendConfig;
+    }
   | {
-    type: 'redis';
-    options: RedisBackendConfig;
-  };
+      type: 'redis';
+      options: RedisBackendConfig;
+    };
 
 export type AgendaBackendDefinition =
   | AgendaBuiltinBackendDefinition
   | {
-    type: 'custom';
-    factory: AgendaBackendFactory;
-  }
+      type: 'custom';
+      factory: AgendaBackendFactory;
+    }
   | AgendaBackendFactory;
 
 export type AgendaModuleConfig = AgendaRuntimeConfig & {

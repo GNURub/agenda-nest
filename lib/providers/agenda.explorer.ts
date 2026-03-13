@@ -25,7 +25,7 @@ export class AgendaExplorer implements OnModuleInit {
     private readonly metadataScanner: MetadataScanner,
     @Inject(AgendaOrchestrator)
     private readonly orchestrator: AgendaOrchestrator,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.explore();
@@ -60,12 +60,7 @@ export class AgendaExplorer implements OnModuleInit {
           queueConfigToken,
         );
 
-        this.orchestrator.addQueue(
-          queueName,
-          queueToken,
-          queue,
-          queueConfig,
-        );
+        this.orchestrator.addQueue(queueName, queueToken, queue, queueConfig);
 
         this.metadataScanner.scanFromPrototype(
           instance,

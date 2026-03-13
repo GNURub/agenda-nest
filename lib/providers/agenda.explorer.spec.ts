@@ -10,7 +10,7 @@ describe('AgendaExplorer', () => {
     failures = 0;
 
     @Every('1 minute')
-    sendDigest() { }
+    sendDigest() {}
 
     @OnJobFail('sendDigest')
     onFailure() {

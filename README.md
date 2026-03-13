@@ -65,15 +65,15 @@ Requirements:
 The example below wires a root Agenda configuration, registers a `notifications` queue, defines a processor, and schedules jobs at runtime with a typed payload.
 
 ```ts
-import { Injectable, Module } from "@nestjs/common";
-import type { Job } from "agenda";
+import { Injectable, Module } from '@nestjs/common';
+import type { Job } from 'agenda';
 import {
   AgendaModule,
   AgendaQueue,
   Define,
   InjectQueue,
   Queue,
-} from "@gnurub/agenda-nest";
+} from '@gnurub/agenda-nest';
 
 type NotificationPayload = {
   to: string;
@@ -81,10 +81,10 @@ type NotificationPayload = {
   body: string;
 };
 
-@Queue("notifications")
+@Queue('notifications')
 @Injectable()
 export class NotificationsQueue {
-  @Define({ name: "send-email", priority: "high", concurrency: 10 })
+  @Define({ name: 'send-email', priority: 'high', concurrency: 10 })
   async sendEmail(job: Job<NotificationPayload>) {
     const { to, subject, body } = job.attrs.data;
 
@@ -95,15 +95,15 @@ export class NotificationsQueue {
 @Injectable()
 export class NotificationsService {
   constructor(
-    @InjectQueue("notifications")
+    @InjectQueue('notifications')
     private readonly queue: AgendaQueue,
   ) {}
 
   async sendWelcomeEmail(to: string) {
-    await this.queue.now("send-email", {
+    await this.queue.now('send-email', {
       to,
-      subject: "Welcome",
-      body: "Thanks for joining.",
+      subject: 'Welcome',
+      body: 'Thanks for joining.',
     });
   }
 }
@@ -111,15 +111,15 @@ export class NotificationsService {
 @Module({
   imports: [
     AgendaModule.forRoot({
-      processEvery: "30 seconds",
+      processEvery: '30 seconds',
       backend: {
-        type: "mongo",
+        type: 'mongo',
         options: {
-          address: "mongodb://127.0.0.1:27017/agenda-nest",
+          address: 'mongodb://127.0.0.1:27017/agenda-nest',
         },
       },
     }),
-    AgendaModule.registerQueue("notifications"),
+    AgendaModule.registerQueue('notifications'),
   ],
   providers: [NotificationsQueue, NotificationsService],
 })
@@ -131,21 +131,21 @@ export class AppModule {}
 `AgendaModule.forRoot()` configures the shared Agenda runtime settings and backend definition.
 
 ```ts
-import { Module } from "@nestjs/common";
-import { AgendaModule } from "@gnurub/agenda-nest";
+import { Module } from '@nestjs/common';
+import { AgendaModule } from '@gnurub/agenda-nest';
 
 @Module({
   imports: [
     AgendaModule.forRoot({
-      processEvery: "1 minute",
+      processEvery: '1 minute',
       defaultConcurrency: 5,
       maxConcurrency: 20,
       defaultLockLifetime: 10 * 60 * 1000,
       backend: {
-        type: "mongo",
+        type: 'mongo',
         options: {
-          address: "mongodb://localhost:27017/app",
-          collection: "agendaJobs",
+          address: 'mongodb://localhost:27017/app',
+          collection: 'agendaJobs',
           ensureIndex: true,
         },
       },
@@ -158,9 +158,9 @@ export class AppModule {}
 You can also configure it asynchronously.
 
 ```ts
-import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { AgendaModule } from "@gnurub/agenda-nest";
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AgendaModule } from '@gnurub/agenda-nest';
 
 @Module({
   imports: [
@@ -168,11 +168,11 @@ import { AgendaModule } from "@gnurub/agenda-nest";
     AgendaModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        processEvery: config.get("queues.processEvery", "30 seconds"),
+        processEvery: config.get('queues.processEvery', '30 seconds'),
         backend: {
-          type: "postgres",
+          type: 'postgres',
           options: {
-            connectionString: config.getOrThrow<string>("DATABASE_URL"),
+            connectionString: config.getOrThrow<string>('DATABASE_URL'),
           },
         },
       }),
@@ -195,19 +195,19 @@ Supported backend definitions:
 Each queue inherits the root runtime configuration and can override queue-specific settings.
 
 ```ts
-import { Module } from "@nestjs/common";
-import { AgendaModule } from "@gnurub/agenda-nest";
+import { Module } from '@nestjs/common';
+import { AgendaModule } from '@gnurub/agenda-nest';
 
 @Module({
   imports: [
-    AgendaModule.registerQueue("notifications", {
+    AgendaModule.registerQueue('notifications', {
       autoStart: false,
-      processEvery: "15 seconds",
-      namespace: "notifications",
-      collection: "notifications-queue",
+      processEvery: '15 seconds',
+      namespace: 'notifications',
+      collection: 'notifications-queue',
     }),
-    AgendaModule.registerQueue("reports", {
-      namespace: "analytics",
+    AgendaModule.registerQueue('reports', {
+      namespace: 'analytics',
     }),
   ],
 })
@@ -225,11 +225,11 @@ Queue options:
 Asynchronous queue configuration is also supported.
 
 ```ts
-AgendaModule.registerQueueAsync("notifications", {
+AgendaModule.registerQueueAsync('notifications', {
   inject: [ConfigService],
   useFactory: (config: ConfigService) => ({
-    autoStart: config.get("queues.notifications.autoStart", true),
-    processEvery: config.get("queues.notifications.processEvery", "30 seconds"),
+    autoStart: config.get('queues.notifications.autoStart', true),
+    processEvery: config.get('queues.notifications.processEvery', '30 seconds'),
   }),
 });
 ```
@@ -239,22 +239,22 @@ AgendaModule.registerQueueAsync("notifications", {
 Use `@Queue()` on the class and `@Define()` on methods that should become Agenda processors.
 
 ```ts
-import { Injectable } from "@nestjs/common";
-import type { Job } from "agenda";
-import { Define, Queue } from "@gnurub/agenda-nest";
+import { Injectable } from '@nestjs/common';
+import type { Job } from 'agenda';
+import { Define, Queue } from '@gnurub/agenda-nest';
 
 type ReportPayload = {
   reportId: string;
-  format: "csv" | "pdf";
+  format: 'csv' | 'pdf';
 };
 
-@Queue("reports")
+@Queue('reports')
 @Injectable()
 export class ReportsQueue {
   @Define({
-    name: "generate-report",
+    name: 'generate-report',
     concurrency: 2,
-    priority: "high",
+    priority: 'high',
     lockLifetime: 60_000,
   })
   async generateReport(job: Job<ReportPayload>) {
@@ -279,22 +279,22 @@ Agenda Nest supports two scheduling styles:
 Use decorators when the schedule is known at boot time.
 
 ```ts
-import type { Job } from "agenda";
-import { Every, Now, Queue, Schedule } from "@gnurub/agenda-nest";
+import type { Job } from 'agenda';
+import { Every, Now, Queue, Schedule } from '@gnurub/agenda-nest';
 
-@Queue("reports")
+@Queue('reports')
 export class ReportsQueue {
-  @Every({ name: "sync-metrics", interval: "5 minutes" })
+  @Every({ name: 'sync-metrics', interval: '5 minutes' })
   async syncMetrics(job: Job) {
     await metricsService.sync();
   }
 
-  @Schedule({ name: "daily-summary", when: "tomorrow at 08:00" })
+  @Schedule({ name: 'daily-summary', when: 'tomorrow at 08:00' })
   async dailySummary(job: Job) {
     await summaryService.send();
   }
 
-  @Now("warm-cache")
+  @Now('warm-cache')
   async warmCache(job: Job) {
     await cacheService.warm();
   }
@@ -308,33 +308,33 @@ Decorator-based schedulers are intended for static jobs. If you need to pass run
 Use `@InjectQueue()` when payloads come from application code at runtime.
 
 ```ts
-import { Injectable } from "@nestjs/common";
-import { AgendaQueue, InjectQueue } from "@gnurub/agenda-nest";
+import { Injectable } from '@nestjs/common';
+import { AgendaQueue, InjectQueue } from '@gnurub/agenda-nest';
 
 @Injectable()
 export class ReportsService {
-  constructor(@InjectQueue("reports") private readonly queue: AgendaQueue) {}
+  constructor(@InjectQueue('reports') private readonly queue: AgendaQueue) {}
 
   async scheduleReport(reportId: string) {
-    await this.queue.schedule("in 10 minutes", "generate-report", {
+    await this.queue.schedule('in 10 minutes', 'generate-report', {
       reportId,
-      format: "pdf",
+      format: 'pdf',
     });
   }
 
   async scheduleDigest(userId: string) {
     await this.queue.every(
-      "1 day",
-      "generate-report",
-      { reportId: userId, format: "csv" },
-      { timezone: "UTC", skipImmediate: true },
+      '1 day',
+      'generate-report',
+      { reportId: userId, format: 'csv' },
+      { timezone: 'UTC', skipImmediate: true },
     );
   }
 
   async runImmediately(reportId: string) {
-    await this.queue.now("generate-report", {
+    await this.queue.now('generate-report', {
       reportId,
-      format: "pdf",
+      format: 'pdf',
     });
   }
 }
@@ -347,7 +347,7 @@ The `AgendaQueue` facade automatically prefixes internal names like `reports::ge
 Use decorators to subscribe to queue-level and job-level events.
 
 ```ts
-import type { Job } from "agenda";
+import type { Job } from 'agenda';
 import {
   OnJobComplete,
   OnJobFail,
@@ -355,13 +355,13 @@ import {
   OnQueueError,
   OnQueueReady,
   Queue,
-} from "@gnurub/agenda-nest";
+} from '@gnurub/agenda-nest';
 
-@Queue("notifications")
+@Queue('notifications')
 export class NotificationsListeners {
   @OnQueueReady()
   onReady() {
-    logger.log("Notifications queue is ready");
+    logger.log('Notifications queue is ready');
   }
 
   @OnQueueError()
@@ -369,17 +369,17 @@ export class NotificationsListeners {
     logger.error(error.message, error.stack);
   }
 
-  @OnJobSuccess("send-email")
+  @OnJobSuccess('send-email')
   onEmailSent(job: Job<{ to: string }>) {
     logger.log(`Sent email to ${job.attrs.data.to}`);
   }
 
-  @OnJobComplete("send-email")
+  @OnJobComplete('send-email')
   onComplete(job: Job) {
     logger.log(`Completed ${job.attrs.name}`);
   }
 
-  @OnJobFail("send-email")
+  @OnJobFail('send-email')
   onFailure(error: Error, job: Job<{ to: string }>) {
     logger.error(
       `Failed to send email to ${job.attrs.data.to}: ${error.message}`,
@@ -422,26 +422,26 @@ Available methods include:
 Example:
 
 ```ts
-import { Injectable } from "@nestjs/common";
-import { AgendaQueue, InjectQueue } from "@gnurub/agenda-nest";
+import { Injectable } from '@nestjs/common';
+import { AgendaQueue, InjectQueue } from '@gnurub/agenda-nest';
 
 @Injectable()
 export class NotificationsAdminService {
   constructor(
-    @InjectQueue("notifications")
+    @InjectQueue('notifications')
     private readonly queue: AgendaQueue,
   ) {}
 
   async listPendingJobs() {
     return this.queue.queryJobs({
-      name: "send-email",
+      name: 'send-email',
       limit: 20,
-      sort: { nextRunAt: "asc" },
+      sort: { nextRunAt: 'asc' },
     });
   }
 
   async cancelPendingJobs() {
-    return this.queue.cancel({ names: ["send-email", "send-reminder"] });
+    return this.queue.cancel({ names: ['send-email', 'send-reminder'] });
   }
 
   get agenda() {
@@ -478,12 +478,12 @@ For package-level tests, the most valuable checks are:
 ### Example Unit Test
 
 ```ts
-import { AgendaQueue } from "@gnurub/agenda-nest";
-import { describe, expect, it, vi } from "vitest";
+import { AgendaQueue } from '@gnurub/agenda-nest';
+import { describe, expect, it, vi } from 'vitest';
 
-describe("AgendaQueue", () => {
-  it("keeps job attrs.data intact for queue-scoped listeners", () => {
-    const payload = { to: "user@example.com", nested: { retries: 1 } };
+describe('AgendaQueue', () => {
+  it('keeps job attrs.data intact for queue-scoped listeners', () => {
+    const payload = { to: 'user@example.com', nested: { retries: 1 } };
     const listener = vi.fn();
 
     class FakeJob {
@@ -494,7 +494,7 @@ describe("AgendaQueue", () => {
       on: vi.fn((eventName: string, handler: (job: FakeJob) => void) => {
         handler(
           new FakeJob({
-            name: "notifications::send-email",
+            name: 'notifications::send-email',
             data: payload,
             failCount: 2,
           }),
@@ -502,13 +502,13 @@ describe("AgendaQueue", () => {
       }),
     } as any;
 
-    const queue = new AgendaQueue(agenda, "notifications");
-    queue.on("success:send-email", listener);
+    const queue = new AgendaQueue(agenda, 'notifications');
+    queue.on('success:send-email', listener);
 
     const normalizedJob = listener.mock.calls[0][0];
 
     expect(normalizedJob.attrs).toEqual({
-      name: "send-email",
+      name: 'send-email',
       data: payload,
       failCount: 2,
     });
