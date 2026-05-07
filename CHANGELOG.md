@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.1.0](https://github.com/gnurub/agenda-nest/compare/v3.0.1...v3.1.0) (2026-05-07)
+
+
+### Features
+
+* update agenda module to improve type safety and job processing ([38bc689](https://github.com/gnurub/agenda-nest/commit/38bc6890166090cf67a302dea5f87504aea362da))
+
 ### [3.0.1](https://github.com/gnurub/agenda-nest/compare/v3.1.0...v3.0.1) (2026-03-13)
 
 ### Bug Fixes
