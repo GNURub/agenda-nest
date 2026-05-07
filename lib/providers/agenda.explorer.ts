@@ -12,6 +12,11 @@ type AgendaProcessor =
   | ((job: Job) => Promise<void>)
   | ((job: Job, done: (error?: Error) => void) => void);
 
+type HandlerFunction = ((...args: unknown[]) => unknown) & {
+  readonly length: number;
+  readonly name: string;
+};
+
 @Injectable()
 export class AgendaExplorer implements OnModuleInit {
   private readonly logger = new Logger('Agenda');
@@ -45,9 +50,10 @@ export class AgendaExplorer implements OnModuleInit {
       .forEach((wrapper: InstanceWrapper) => {
         const { instance, metatype } = wrapper;
 
-        const { queueName } = this.metadataAccessor.getQueueMetadata(
+        const queueMetadata = this.metadataAccessor.getQueueMetadata(
           instance.constructor || metatype,
         );
+        const queueName = queueMetadata?.queueName;
 
         const queueToken = getRawQueueToken(queueName);
 
@@ -62,49 +68,54 @@ export class AgendaExplorer implements OnModuleInit {
 
         this.orchestrator.addQueue(queueName, queueToken, queue, queueConfig);
 
-        this.metadataScanner.scanFromPrototype(
-          instance,
+        for (const key of this.metadataScanner.getAllMethodNames(
           Object.getPrototypeOf(instance),
-          (key: string) => {
-            const methodRef = instance[key];
+        )) {
+          const methodRef = instance[key] as HandlerFunction;
 
-            if (this.metadataAccessor.isJobProcessor(methodRef)) {
-              const jobProcessorType =
-                this.metadataAccessor.getJobProcessorType(methodRef);
+          if (this.metadataAccessor.isJobProcessor(methodRef)) {
+            const jobProcessorType =
+              this.metadataAccessor.getJobProcessorType(methodRef);
 
-              const jobOptions =
-                this.metadataAccessor.getJobProcessorMetadata(methodRef);
+            const jobOptions =
+              this.metadataAccessor.getJobProcessorMetadata(methodRef);
 
-              const jobProcessor: AgendaProcessor & Record<'_name', string> =
-                this.wrapFunctionInTryCatchBlocks(methodRef, instance);
-
-              this.orchestrator.addJobProcessor(
-                queueToken,
-                jobProcessor,
-                jobOptions,
-                jobProcessorType,
-                methodRef.length === 2,
-              );
-            } else if (this.metadataAccessor.isEventListener(methodRef)) {
-              const listener = this.wrapFunctionInTryCatchBlocks(
-                methodRef,
-                instance,
-              );
-
-              const eventName =
-                this.metadataAccessor.getListenerMetadata(methodRef);
-
-              const jobName = this.metadataAccessor.getJobName(methodRef);
-
-              return this.orchestrator.addEventListener(
-                queueToken,
-                listener,
-                eventName,
-                jobName,
-              );
+            if (!jobOptions) {
+              continue;
             }
-          },
-        );
+
+            const jobProcessor: AgendaProcessor & Record<'_name', string> =
+              this.wrapFunctionInTryCatchBlocks(methodRef, instance);
+
+            this.orchestrator.addJobProcessor(
+              queueToken,
+              jobProcessor,
+              jobOptions,
+              jobProcessorType,
+              methodRef.length === 2,
+            );
+          } else if (this.metadataAccessor.isEventListener(methodRef)) {
+            const listener = this.wrapFunctionInTryCatchBlocks(
+              methodRef,
+              instance,
+            );
+
+            const eventName =
+              this.metadataAccessor.getListenerMetadata(methodRef);
+            if (!eventName) {
+              continue;
+            }
+
+            const jobName = this.metadataAccessor.getJobName(methodRef);
+
+            this.orchestrator.addEventListener(
+              queueToken,
+              listener,
+              eventName,
+              jobName,
+            );
+          }
+        }
       });
   }
 
@@ -122,14 +133,14 @@ export class AgendaExplorer implements OnModuleInit {
     return provider.instance as T;
   }
 
-  private wrapFunctionInTryCatchBlocks(methodRef: Function, instance: object) {
-    const handler = (...args: unknown[]) => {
-      try {
-        return methodRef.call(instance, ...args);
-      } catch (error) {
-        this.logger.error(error);
-        throw error;
-      }
+  private wrapFunctionInTryCatchBlocks(
+    methodRef: HandlerFunction,
+    instance: object,
+  ) {
+    const handler: HandlerFunction & Record<'_name', string> = (
+      ...args: unknown[]
+    ) => {
+      return methodRef.call(instance, ...args);
     };
 
     handler._name = methodRef.name;

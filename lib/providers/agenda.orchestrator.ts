@@ -22,6 +22,12 @@ type AgendaProcessor =
   | ((job: Job) => Promise<void>)
   | ((job: Job, done: (error?: Error) => void) => void);
 
+type DefineJob = (
+  name: string,
+  processor: AgendaProcessor,
+  options?: RepeatableJobOptions | NonRepeatableJobOptions,
+) => void;
+
 type JobProcessorConfig = {
   handler: AgendaProcessor;
   type: JobProcessorType;
@@ -29,7 +35,7 @@ type JobProcessorConfig = {
   useCallback: boolean;
 };
 
-export type EventListener = (...args: any[]) => void;
+export type EventListener = (...args: unknown[]) => void;
 
 type EventListenerConfig = {
   listener: EventListener;
@@ -79,12 +85,20 @@ export class AgendaOrchestrator
   }
 
   addQueue(
-    queueName: string,
+    queueName: string | undefined,
     queueToken: string,
     queue: Agenda,
     config: AgendaQueueConfig,
   ) {
     const namespace = getQueueNamespace(queueName, config.namespace);
+    const existing = this.queues.get(queueToken);
+
+    if (existing) {
+      existing.queue = queue;
+      existing.config = config;
+      existing.namespace = namespace;
+      return;
+    }
 
     this.queues.set(queueToken, {
       queue,
@@ -152,15 +166,16 @@ export class AgendaOrchestrator
           registry.namespace,
           jobName,
         );
+        const define = agenda.define.bind(agenda) as unknown as DefineJob;
 
         if (useCallback) {
-          (agenda as any).define(
+          define(
             qualifiedJobName,
-            (job: Job, done: () => void) => handler(job, done),
+            (job: Job, done: (error?: Error) => void) => handler(job, done),
             options,
           );
         } else {
-          (agenda as any).define(qualifiedJobName, handler, options);
+          define(qualifiedJobName, handler, options);
         }
       },
     );

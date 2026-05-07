@@ -1,5 +1,13 @@
 import type { BackoffStrategy, JobDefinition } from 'agenda';
 
+export type JobPriority =
+  | 'lowest'
+  | 'low'
+  | 'normal'
+  | 'high'
+  | 'highest'
+  | number;
+
 export type AgendaDefineOptions = Partial<
   Pick<
     JobDefinition,
@@ -11,7 +19,7 @@ export type AgendaDefineOptions = Partial<
     | 'logging'
   >
 > & {
-  priority?: string | number;
+  priority?: JobPriority;
   backoff?: BackoffStrategy;
 };
 

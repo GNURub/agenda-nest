@@ -1,17 +1,22 @@
-import { defineConfig } from 'tsup';
+import { defineConfig } from 'tsdown';
 
 const sharedConfig = {
-  bundle: true,
   clean: false,
+  deps: {
+    skipNodeModulesBundle: true,
+  },
   entry: {
     index: 'lib/index.ts',
   },
   minify: false,
+  outExtensions() {
+    return {
+      js: '.js',
+    };
+  },
   platform: 'node',
   shims: false,
-  skipNodeModulesBundle: true,
   sourcemap: false,
-  splitting: false,
   tsconfig: './tsconfig.json',
 } as const;
 
@@ -27,11 +32,6 @@ export default defineConfig([
     ...sharedConfig,
     dts: false,
     format: ['esm'],
-    outExtension() {
-      return {
-        js: '.js',
-      };
-    },
     outDir: 'dist/esm',
     target: 'es2022',
   },

@@ -4,10 +4,9 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [3.0.1](https://github.com/gnurub/agenda-nest/compare/v3.1.0...v3.0.1) (2026-03-13)
 
-
 ### Bug Fixes
 
-* revert version to 3.0.0 and ensure package is not private ([8e62638](https://github.com/gnurub/agenda-nest/commit/8e6263812bdd9de6f8f67e2a4758a0561de11b01))
+- revert version to 3.0.0 and ensure package is not private ([8e62638](https://github.com/gnurub/agenda-nest/commit/8e6263812bdd9de6f8f67e2a4758a0561de11b01))
 
 ## 3.1.0 (2026-03-12)
 

@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import type { Agenda } from 'agenda';
 import {
   afterAll,
   beforeAll,
@@ -13,7 +12,7 @@ import { AgendaModule } from '../lib';
 import { AlphaJobsHandler, BetaJobsHandler } from './isolation.handlers';
 import { JobsHandler } from './jobs.handler';
 
-type Listener = (...args: any[]) => void;
+type Listener = (...args: unknown[]) => void;
 
 type FakeJob = {
   attrs: {
@@ -22,12 +21,16 @@ type FakeJob = {
   };
 };
 
+type JobProcessor =
+  | ((job: FakeJob) => Promise<void> | void)
+  | ((job: FakeJob, done: (error?: Error) => void) => void);
+
 class FakeMongoBackend {
   static instances: FakeMongoBackend[] = [];
 
   readonly name = 'MongoDB';
 
-  readonly repository = {} as any;
+  readonly repository: Record<string, never> = {};
 
   readonly ownsConnection = true;
 
@@ -49,7 +52,7 @@ class FakeAgenda {
 
   private readonly definitions = new Map<
     string,
-    { processor: Function; options?: Record<string, unknown> }
+    { processor: JobProcessor; options?: Record<string, unknown> }
   >();
 
   private readonly listeners = new Map<string, Listener[]>();
@@ -96,7 +99,11 @@ class FakeAgenda {
     return this.off(eventName, listener);
   }
 
-  define(name: string, processor: Function, options?: Record<string, unknown>) {
+  define(
+    name: string,
+    processor: JobProcessor,
+    options?: Record<string, unknown>,
+  ) {
     this.definitions.set(name, { processor, options });
   }
 
@@ -138,7 +145,7 @@ class FakeAgenda {
 
   async stop() {}
 
-  private emit(eventName: string, ...args: unknown[]) {
+  emit(eventName: string, ...args: unknown[]) {
     for (const listener of this.listeners.get(eventName) || []) {
       listener(...args);
     }
@@ -233,7 +240,7 @@ describe('Agenda Module', () => {
   describe('handles decorators', () => {
     let testingModule: TestingModule;
     let jobsHandler: JobsHandler;
-    let agenda: Agenda;
+    let agenda: FakeAgenda;
 
     beforeAll(async () => {
       testingModule = await Test.createTestingModule({
@@ -242,10 +249,12 @@ describe('Agenda Module', () => {
       }).compile();
 
       jobsHandler = testingModule.get(JobsHandler);
-      agenda = testingModule.get<Agenda>('jobs-queue:raw', { strict: false });
+      agenda = testingModule.get<FakeAgenda>('jobs-queue:raw', {
+        strict: false,
+      });
 
       await testingModule.init();
-      await (agenda as any).ready;
+      await agenda.ready;
       await wait();
     });
 
@@ -290,7 +299,7 @@ describe('Agenda Module', () => {
     });
 
     it('should notify when the queue emits an error', () => {
-      (agenda as any).emit('error', new Error('queue failed'));
+      agenda.emit('error', new Error('queue failed'));
 
       expect(jobsHandler.handled).toContain('onQueueError');
     });
@@ -303,7 +312,7 @@ describe('Agenda Module', () => {
         providers: [JobsHandler],
       }).compile();
 
-      const agenda = testingModule.get<Agenda>('jobs-queue:raw', {
+      const agenda = testingModule.get<FakeAgenda>('jobs-queue:raw', {
         strict: false,
       });
       vi.spyOn(agenda, 'start');
@@ -324,7 +333,7 @@ describe('Agenda Module', () => {
         providers: [JobsHandler],
       }).compile();
 
-      const agenda = testingModule.get<Agenda>('jobs-queue:raw', {
+      const agenda = testingModule.get<FakeAgenda>('jobs-queue:raw', {
         strict: false,
       });
       vi.spyOn(agenda, 'start');
@@ -347,7 +356,7 @@ describe('Agenda Module', () => {
 
       await testingModule.init();
 
-      const agenda = testingModule.get<any>('jobs-queue:raw', {
+      const agenda = testingModule.get<FakeAgenda>('jobs-queue:raw', {
         strict: false,
       });
 
@@ -412,7 +421,7 @@ describe('Agenda Module', () => {
 
       await testingModule.init();
 
-      const agenda = testingModule.get<any>('jobs-queue:raw', {
+      const agenda = testingModule.get<FakeAgenda>('jobs-queue:raw', {
         strict: false,
       });
 

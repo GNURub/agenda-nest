@@ -6,6 +6,7 @@ import {
   Type,
 } from '@nestjs/common';
 import { DiscoveryModule, Reflector } from '@nestjs/core';
+import type { Agenda } from 'agenda';
 import { AgendaQueue } from './agenda.queue';
 import { AGENDA_MODULE_CONFIG } from './constants';
 import { agendaFactory } from './factories';
@@ -99,7 +100,7 @@ export class AgendaModule {
       },
       {
         provide: getQueueToken(name),
-        useFactory: (agenda: any, queueConfig: AgendaQueueConfig) =>
+        useFactory: (agenda: Agenda, queueConfig: AgendaQueueConfig) =>
           new AgendaQueue(
             agenda,
             getQueueNamespace(name, queueConfig.namespace),
@@ -134,7 +135,7 @@ export class AgendaModule {
       },
       {
         provide: getQueueToken(name),
-        useFactory: (agenda: any, queueConfig: AgendaQueueConfig) =>
+        useFactory: (agenda: Agenda, queueConfig: AgendaQueueConfig) =>
           new AgendaQueue(
             agenda,
             getQueueNamespace(name, queueConfig.namespace),

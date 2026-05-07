@@ -7,30 +7,34 @@ import {
   JOB_PROCESSOR_TYPE,
   ON_QUEUE_EVENT,
 } from '../constants';
-import { AgendaModuleJobOptions } from '../decorators';
-import { JobProcessorType } from '../enums';
+import { AgendaModuleJobOptions, QueueDecoratorConfig } from '../decorators';
+import { AgendaQueueEvent, JobProcessorType } from '../enums';
 
 @Injectable()
 export class AgendaMetadataAccessor {
   constructor(@Inject(Reflector) private readonly reflector: Reflector) {}
 
-  isQueue(target: Type<any> | Function): boolean {
+  isQueue(target: Type<unknown> | Function): boolean {
     return !!this.reflector.get(AGENDA_MODULE_QUEUE, target);
   }
 
-  isEventListener(target: Type<any> | Function): boolean {
+  isEventListener(target: Type<unknown> | Function): boolean {
     return !!this.getListenerMetadata(target);
   }
 
-  isJobProcessor(target: Type<any> | Function): boolean {
+  isJobProcessor(target: Type<unknown> | Function): boolean {
     return !!this.getJobProcessorMetadata(target);
   }
 
-  getListenerMetadata(target: Type<any> | Function): any {
+  getListenerMetadata(
+    target: Type<unknown> | Function,
+  ): AgendaQueueEvent | undefined {
     return this.reflector.get(ON_QUEUE_EVENT, target);
   }
 
-  getQueueMetadata(target: Type<any> | Function): any {
+  getQueueMetadata(
+    target: Type<unknown> | Function,
+  ): QueueDecoratorConfig | undefined {
     return this.reflector.get(AGENDA_MODULE_QUEUE, target);
   }
 
@@ -43,8 +47,8 @@ export class AgendaMetadataAccessor {
   }
 
   getJobProcessorMetadata(
-    target: Type<any> | Function,
-  ): AgendaModuleJobOptions {
+    target: Type<unknown> | Function,
+  ): AgendaModuleJobOptions | undefined {
     return this.reflector.get(AGENDA_JOB_OPTIONS, target);
   }
 }

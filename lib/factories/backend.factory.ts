@@ -65,17 +65,25 @@ export async function createAgendaBackend(
   try {
     if (definition.type === 'mongo') {
       const { MongoBackend } = await loadMongoBackendModule();
-      return new MongoBackend(withQueueMongoOptions(definition, context));
+      return new MongoBackend(
+        withQueueMongoOptions(definition, context) as ConstructorParameters<
+          typeof MongoBackend
+        >[0],
+      );
     }
 
     if (definition.type === 'postgres') {
       const { PostgresBackend } = await loadPostgresBackendModule();
-      return new PostgresBackend(definition.options);
+      return new PostgresBackend(
+        definition.options as ConstructorParameters<typeof PostgresBackend>[0],
+      );
     }
 
     if (definition.type === 'redis') {
       const { RedisBackend } = await loadRedisBackendModule();
-      return new RedisBackend(definition.options);
+      return new RedisBackend(
+        definition.options as ConstructorParameters<typeof RedisBackend>[0],
+      );
     }
   } catch (error) {
     if (definition.type === 'mongo') {

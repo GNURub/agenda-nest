@@ -4,9 +4,9 @@ import {
   Provider,
   Type,
 } from '@nestjs/common';
-import type { AgendaBackend, AgendaOptions } from 'agenda';
+import type { AgendaBackend, AgendaOptions, SortDirection } from 'agenda';
 
-export type AgendaSortDirection = 'asc' | 'desc' | 1 | -1;
+export type AgendaSortDirection = SortDirection;
 
 export type MongoBackendConfig = (
   | {
@@ -109,7 +109,7 @@ export interface AgendaModuleAsyncConfig<T> extends Pick<
 > {
   useExisting?: Type<AgendaConfigFactory<T>>;
   useClass?: Type<AgendaConfigFactory<T>>;
-  useFactory?: (...args: any[]) => Promise<T> | T;
+  useFactory?: (...args: unknown[]) => Promise<T> | T;
   inject?: FactoryProvider['inject'];
   extraProviders?: Provider[];
 }

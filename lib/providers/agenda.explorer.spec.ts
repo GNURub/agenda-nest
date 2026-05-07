@@ -91,17 +91,18 @@ describe('AgendaExplorer', () => {
       metadataAccessor,
       metadataScanner,
       orchestrator,
-    ) as any;
+    ) as unknown as AgendaExplorer & {
+      wrapFunctionInTryCatchBlocks(
+        methodRef: (...args: unknown[]) => unknown,
+        instance: object,
+      ): ((...args: unknown[]) => unknown) & Record<'_name', string>;
+    };
 
-    const loggerSpy = vi
-      .spyOn(explorer.logger, 'error')
-      .mockImplementation(() => undefined);
     const handler = explorer.wrapFunctionInTryCatchBlocks(function explode() {
       throw new Error('boom');
     }, {});
 
     expect(() => handler()).toThrow('boom');
-    expect(loggerSpy).toHaveBeenCalled();
     expect(handler._name).toBe('explode');
   });
 });

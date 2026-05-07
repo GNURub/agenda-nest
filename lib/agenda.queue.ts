@@ -4,11 +4,11 @@ import type {
   Job,
   JobLogQuery,
   JobLogQueryResult,
+  JobParameters,
   JobWithState,
   JobsQueryOptions,
   JobsResult,
   RemoveJobsOptions,
-  RetryDetails,
 } from 'agenda';
 import type { AgendaDefineOptions, AgendaSchedulerOptions } from './interfaces';
 import {
@@ -18,7 +18,21 @@ import {
   getUnqualifiedJobName,
 } from './utils';
 
-type Listener = (...args: any[]) => void;
+type Listener = (...args: unknown[]) => void;
+
+type DrainOptions = Parameters<Agenda['drain']>[0];
+
+type MutableJob<DATA = unknown> = Job<DATA> & {
+  attrs: JobParameters<DATA>;
+};
+
+type DefineJob = <DATA = unknown>(
+  name: string,
+  processor:
+    | ((job: Job<DATA>) => Promise<void>)
+    | ((job: Job<DATA>, done: (error?: Error) => void) => void),
+  options?: AgendaDefineOptions,
+) => void;
 
 type MaybeNames = string | string[];
 
@@ -41,6 +55,11 @@ const mapNames = (
 };
 
 export class AgendaQueue {
+  private readonly listenerWrappers = new Map<
+    string,
+    WeakMap<Listener, Listener>
+  >();
+
   constructor(
     private readonly agenda: Agenda,
     private readonly namespace: string,
@@ -61,7 +80,9 @@ export class AgendaQueue {
       | ((job: Job<DATA>, done: (error?: Error) => void) => void),
     options?: AgendaDefineOptions,
   ) {
-    (this.agenda as any).define(this.qualifyJobName(name), processor, options);
+    const define = this.agenda.define.bind(this.agenda) as unknown as DefineJob;
+
+    define(this.qualifyJobName(name), processor, options);
     return this;
   }
 
@@ -149,12 +170,8 @@ export class AgendaQueue {
     return this.agenda.stop(closeConnection);
   }
 
-  drain(
-    options?:
-      | number
-      | { timeout?: number; signal?: unknown; closeConnection?: boolean },
-  ) {
-    return this.agenda.drain(options as any);
+  drain(options?: DrainOptions) {
+    return this.agenda.drain(options);
   }
 
   on(eventName: AgendaEventName | string, listener: Listener) {
@@ -162,7 +179,10 @@ export class AgendaQueue {
       this.agenda as unknown as {
         on(eventName: string, listener: Listener): Agenda;
       }
-    ).on(this.qualifyEventName(String(eventName)), this.wrapListener(listener));
+    ).on(
+      this.qualifyEventName(String(eventName)),
+      this.getWrappedListener(String(eventName), listener),
+    );
 
     return this;
   }
@@ -174,7 +194,7 @@ export class AgendaQueue {
       }
     ).once(
       this.qualifyEventName(String(eventName)),
-      this.wrapListener(listener),
+      this.getWrappedListener(String(eventName), listener),
     );
 
     return this;
@@ -185,7 +205,10 @@ export class AgendaQueue {
       this.agenda as unknown as {
         off(eventName: string, listener: Listener): Agenda;
       }
-    ).off(this.qualifyEventName(String(eventName)), listener);
+    ).off(
+      this.qualifyEventName(String(eventName)),
+      this.getRegisteredListener(String(eventName), listener),
+    );
     return this;
   }
 
@@ -194,7 +217,10 @@ export class AgendaQueue {
       this.agenda as unknown as {
         removeListener(eventName: string, listener: Listener): Agenda;
       }
-    ).removeListener(this.qualifyEventName(String(eventName)), listener);
+    ).removeListener(
+      this.qualifyEventName(String(eventName)),
+      this.getRegisteredListener(String(eventName), listener),
+    );
     return this;
   }
 
@@ -217,23 +243,24 @@ export class AgendaQueue {
         typeof options.name === 'string'
           ? this.qualifyJobName(options.name)
           : options.name,
+      names: options.names?.map((name) => this.qualifyJobName(name)),
     };
   }
 
   private qualifyRemoveOptions(options: QueueRemoveOptions): RemoveJobsOptions {
+    const { name, names, notName, notNames, ...rest } = options;
     const qualifiedNames = [
-      ...(mapNames(options.names, (name) => this.qualifyJobName(name)) || []),
-      ...(options.name ? [this.qualifyJobName(options.name)] : []),
+      ...(mapNames(names, (name) => this.qualifyJobName(name)) || []),
+      ...(name ? [this.qualifyJobName(name)] : []),
     ];
 
     const qualifiedNotNames = [
-      ...(mapNames(options.notNames, (name) => this.qualifyJobName(name)) ||
-        []),
-      ...(options.notName ? [this.qualifyJobName(options.notName)] : []),
+      ...(mapNames(notNames, (name) => this.qualifyJobName(name)) || []),
+      ...(notName ? [this.qualifyJobName(notName)] : []),
     ];
 
     return {
-      ...options,
+      ...rest,
       names: qualifiedNames.length ? qualifiedNames : undefined,
       notNames: qualifiedNotNames.length ? qualifiedNotNames : undefined,
     };
@@ -247,14 +274,14 @@ export class AgendaQueue {
   }
 
   private normalizeJob<T extends Job>(job: T): T {
-    const clone = cloneWithPrototype(job);
+    const clone = cloneWithPrototype(job) as MutableJob;
 
-    (clone as any).attrs = {
+    clone.attrs = {
       ...clone.attrs,
       name: getUnqualifiedJobName(this.namespace, clone.attrs.name),
     };
 
-    return clone;
+    return clone as T;
   }
 
   private normalizeValue<T>(value: T): T {
@@ -279,9 +306,39 @@ export class AgendaQueue {
     return value;
   }
 
-  private wrapListener(listener: Listener) {
-    return (...args: [Error | string | Job | RetryDetails, ...unknown[]]) => {
+  private wrapListener(listener: Listener): Listener {
+    return (...args: unknown[]) => {
       listener(...args.map((arg) => this.normalizeValue(arg)));
     };
+  }
+
+  private getWrappedListener(eventName: string, listener: Listener) {
+    const qualifiedEventName = this.qualifyEventName(eventName);
+    let listeners = this.listenerWrappers.get(qualifiedEventName);
+
+    if (!listeners) {
+      listeners = new WeakMap();
+      this.listenerWrappers.set(qualifiedEventName, listeners);
+    }
+
+    const existing = listeners.get(listener);
+
+    if (existing) {
+      return existing;
+    }
+
+    const wrapped = this.wrapListener(listener);
+
+    listeners.set(listener, wrapped);
+
+    return wrapped;
+  }
+
+  private getRegisteredListener(eventName: string, listener: Listener) {
+    return (
+      this.listenerWrappers
+        .get(this.qualifyEventName(eventName))
+        ?.get(listener) || listener
+    );
   }
 }

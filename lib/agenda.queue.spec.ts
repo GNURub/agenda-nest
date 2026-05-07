@@ -110,6 +110,23 @@ describe('AgendaQueue', () => {
     expect(result.jobs[0].data).toBe(jobData);
   });
 
+  it('should namespace multi-name job queries', async () => {
+    const agenda = {
+      queryJobs: vi.fn().mockResolvedValue({
+        total: 0,
+        jobs: [],
+      }),
+    } as any;
+
+    const queue = new AgendaQueue(agenda, 'notifications');
+
+    await queue.queryJobs({ names: ['sendNotification', 'sendDigest'] });
+
+    expect(agenda.queryJobs).toHaveBeenCalledWith({
+      names: ['notifications::sendNotification', 'notifications::sendDigest'],
+    });
+  });
+
   it('should namespace create calls', () => {
     const payload = {
       to: 'user@example.com',
@@ -169,9 +186,7 @@ describe('AgendaQueue', () => {
     });
 
     expect(agenda.cancel).toHaveBeenCalledWith({
-      name: 'sendNotification',
       names: ['notifications::sendDigest', 'notifications::sendNotification'],
-      notName: 'skipNotification',
       notNames: [
         'notifications::skipDigest',
         'notifications::skipNotification',
@@ -330,6 +345,33 @@ describe('AgendaQueue', () => {
     expect(agenda.removeListener).toHaveBeenCalledWith(
       'complete:notifications::sendNotification',
       offListener,
+    );
+  });
+
+  it('should unregister the same wrapped listener that was registered', () => {
+    const agenda = {
+      on: vi.fn(),
+      off: vi.fn(),
+      removeListener: vi.fn(),
+    } as any;
+    const listener = vi.fn();
+
+    const queue = new AgendaQueue(agenda, 'notifications');
+
+    queue.on('complete:sendNotification', listener);
+    queue.off('complete:sendNotification', listener);
+    queue.removeListener('complete:sendNotification', listener);
+
+    const registeredListener = agenda.on.mock.calls[0][1];
+
+    expect(registeredListener).not.toBe(listener);
+    expect(agenda.off).toHaveBeenCalledWith(
+      'complete:notifications::sendNotification',
+      registeredListener,
+    );
+    expect(agenda.removeListener).toHaveBeenCalledWith(
+      'complete:notifications::sendNotification',
+      registeredListener,
     );
   });
 });

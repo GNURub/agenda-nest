@@ -114,4 +114,44 @@ describe('AgendaOrchestrator', () => {
     expect(processor).toHaveBeenCalled();
     expect(queue.start).not.toHaveBeenCalled();
   });
+
+  it('should preserve processors when the same queue is discovered more than once', async () => {
+    const queue = createQueue();
+    const orchestrator = new AgendaOrchestrator();
+
+    orchestrator.addQueue('jobs', 'jobs-queue:raw', queue as any, {
+      autoStart: false,
+    });
+    orchestrator.addJobProcessor(
+      'jobs-queue:raw',
+      Object.assign(vi.fn(), { _name: 'firstJob' }) as any,
+      { interval: '1 minute' },
+      JobProcessorType.EVERY,
+      false,
+    );
+
+    orchestrator.addQueue('jobs', 'jobs-queue:raw', queue as any, {
+      autoStart: false,
+    });
+    orchestrator.addJobProcessor(
+      'jobs-queue:raw',
+      Object.assign(vi.fn(), { _name: 'secondJob' }) as any,
+      { interval: '5 minutes' },
+      JobProcessorType.EVERY,
+      false,
+    );
+
+    await orchestrator.onApplicationBootstrap();
+
+    expect(queue.define).toHaveBeenCalledWith(
+      'jobs::firstJob',
+      expect.any(Function),
+      { interval: '1 minute' },
+    );
+    expect(queue.define).toHaveBeenCalledWith(
+      'jobs::secondJob',
+      expect.any(Function),
+      { interval: '5 minutes' },
+    );
+  });
 });
