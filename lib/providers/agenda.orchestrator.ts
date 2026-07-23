@@ -77,10 +77,15 @@ export class AgendaOrchestrator
   }
 
   async beforeApplicationShutdown() {
-    for await (const queue of this.queues) {
-      const [, config] = queue;
+    const results = await Promise.allSettled(
+      [...this.queues.values()].map(({ queue }) => queue.stop()),
+    );
+    const failure = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
 
-      await config.queue.stop();
+    if (failure) {
+      throw failure.reason;
     }
   }
 
@@ -142,7 +147,11 @@ export class AgendaOrchestrator
   private attachEventListeners(agenda: Agenda, registry: QueueRegistry) {
     registry.listeners.forEach(({ listener, eventName, jobName }) => {
       if (eventName === 'ready') {
-        agenda.ready.then(() => listener());
+        agenda.ready
+          .then(() => listener())
+          .catch((error: unknown) => {
+            this.logger.error('Agenda ready listener failed', error);
+          });
         return;
       }
 

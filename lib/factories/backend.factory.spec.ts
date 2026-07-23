@@ -1,4 +1,8 @@
-import { BACKEND_PACKAGE_REQUIRED, UNKNOWN_BACKEND } from '../agenda.messages';
+import {
+  BACKEND_PACKAGE_REQUIRED,
+  CUSTOM_BACKEND_FACTORY_REQUIRED,
+  UNKNOWN_BACKEND,
+} from '../agenda.messages';
 import {
   loadMongoBackendModule,
   loadPostgresBackendModule,
@@ -82,6 +86,27 @@ describe('createAgendaBackend', () => {
     });
   });
 
+  it.each([
+    ['postgres', loadPostgresBackendModuleMock, 'PostgresBackend'],
+    ['redis', loadRedisBackendModuleMock, 'RedisBackend'],
+  ] as const)(
+    'should instantiate builtin %s backends',
+    async (type, loader, exportName) => {
+      class Backend {
+        constructor(readonly config: Record<string, unknown>) {}
+      }
+
+      loader.mockResolvedValue({ [exportName]: Backend });
+      const options = { connectionString: `${type}://example.test` };
+      const backend = (await createAgendaBackend(
+        { type, options } as any,
+        context as any,
+      )) as Backend;
+
+      expect(backend.config).toBe(options);
+    },
+  );
+
   it('should map missing builtin dependencies to actionable errors', async () => {
     loadRedisBackendModuleMock.mockRejectedValue(
       new Error('Cannot find module @agendajs/redis-backend'),
@@ -102,5 +127,20 @@ describe('createAgendaBackend', () => {
     await expect(
       createAgendaBackend('invalid' as any, context as any),
     ).rejects.toThrow(UNKNOWN_BACKEND('invalid'));
+  });
+
+  it('should reject custom backend definitions without a factory', async () => {
+    await expect(
+      createAgendaBackend({ type: 'custom' } as any, context as any),
+    ).rejects.toThrow(CUSTOM_BACKEND_FACTORY_REQUIRED);
+  });
+
+  it('should preserve backend initialization errors unrelated to package loading', async () => {
+    const error = new Error('connection refused');
+    loadPostgresBackendModuleMock.mockRejectedValue(error);
+
+    await expect(
+      createAgendaBackend({ type: 'postgres', options: {} }, context as any),
+    ).rejects.toBe(error);
   });
 });

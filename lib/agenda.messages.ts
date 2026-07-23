@@ -8,3 +8,12 @@ export const UNKNOWN_BACKEND = (type: string) =>
 
 export const BACKEND_PACKAGE_REQUIRED = (packageName: string) =>
   `Missing optional backend package ${packageName}. Install it in the consuming application to use this backend.`;
+
+export const ASYNC_CONFIG_REQUIRED =
+  'Async Agenda configuration requires exactly one of useFactory, useClass, or useExisting.';
+
+export const ROOT_BACKEND_REQUIRED =
+  'Agenda root configuration requires a backend definition.';
+
+export const CUSTOM_BACKEND_FACTORY_REQUIRED =
+  'Custom Agenda backend configuration requires a factory function.';

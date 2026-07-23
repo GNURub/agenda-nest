@@ -154,4 +154,44 @@ describe('AgendaOrchestrator', () => {
       { interval: '5 minutes' },
     );
   });
+
+  it('should attempt to stop every queue when one stop fails', async () => {
+    const firstQueue = createQueue();
+    const secondQueue = createQueue();
+    const stopError = new Error('first queue failed to stop');
+    firstQueue.stop.mockRejectedValue(stopError);
+    const orchestrator = new AgendaOrchestrator();
+
+    orchestrator.addQueue('first', 'first-queue:raw', firstQueue as any, {});
+    orchestrator.addQueue('second', 'second-queue:raw', secondQueue as any, {});
+
+    await expect(orchestrator.beforeApplicationShutdown()).rejects.toBe(
+      stopError,
+    );
+    expect(firstQueue.stop).toHaveBeenCalledTimes(1);
+    expect(secondQueue.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('should log rejected ready listeners without an unhandled rejection', async () => {
+    const queue = createQueue();
+    const orchestrator = new AgendaOrchestrator();
+    const listenerError = new Error('listener failed');
+    const logger = (orchestrator as any).logger;
+    vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+
+    orchestrator.addQueue('jobs', 'jobs-queue:raw', queue as any, {});
+    orchestrator.addEventListener(
+      'jobs-queue:raw',
+      () => Promise.reject(listenerError),
+      'ready',
+    );
+
+    await orchestrator.onApplicationBootstrap();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Agenda ready listener failed',
+      listenerError,
+    );
+  });
 });

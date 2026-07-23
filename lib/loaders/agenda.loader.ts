@@ -3,11 +3,8 @@ type MongoBackendModule = typeof import('@agendajs/mongo-backend');
 type PostgresBackendModule = typeof import('@agendajs/postgres-backend');
 type RedisBackendModule = typeof import('@agendajs/redis-backend');
 
-const importModule = new Function('specifier', 'return import(specifier);') as <
-  TModule,
->(
-  specifier: string,
-) => Promise<TModule>;
+const importModule = <TModule>(specifier: string) =>
+  import(specifier) as Promise<TModule>;
 
 export const loadAgendaModule = () => importModule<AgendaModule>('agenda');
 

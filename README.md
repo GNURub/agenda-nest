@@ -57,7 +57,7 @@ npm install @gnurub/agenda-nest agenda @agendajs/redis-backend
 Requirements:
 
 - Node.js 24+
-- NestJS >= 11
+- NestJS 9, 10, or 11
 - Agenda 6.x
 
 ## Quick Start

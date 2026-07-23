@@ -7,6 +7,10 @@ import {
 } from '@nestjs/common';
 import { DiscoveryModule, Reflector } from '@nestjs/core';
 import type { Agenda } from 'agenda';
+import {
+  ASYNC_CONFIG_REQUIRED,
+  ROOT_BACKEND_REQUIRED,
+} from './agenda.messages';
 import { AgendaQueue } from './agenda.queue';
 import { AGENDA_MODULE_CONFIG } from './constants';
 import { agendaFactory } from './factories';
@@ -37,6 +41,10 @@ import {
 })
 export class AgendaModule {
   static forRoot(config: AgendaModuleConfig): DynamicModule {
+    if (!config?.backend) {
+      throw new Error(ROOT_BACKEND_REQUIRED);
+    }
+
     const configProviders: Provider[] = [
       {
         provide: AGENDA_MODULE_CONFIG,
@@ -157,6 +165,16 @@ export class AgendaModule {
     token: InjectionToken,
     config: AgendaModuleAsyncConfig<T>,
   ): Provider[] {
+    const strategies = [
+      config.useFactory,
+      config.useClass,
+      config.useExisting,
+    ].filter(Boolean);
+
+    if (strategies.length !== 1) {
+      throw new Error(ASYNC_CONFIG_REQUIRED);
+    }
+
     if (config.useExisting || config.useFactory) {
       return [this.createAsyncOptionsProvider(token, config)];
     }

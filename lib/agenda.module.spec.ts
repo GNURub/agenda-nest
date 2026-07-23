@@ -1,4 +1,8 @@
 import { AgendaModule } from './agenda.module';
+import {
+  ASYNC_CONFIG_REQUIRED,
+  ROOT_BACKEND_REQUIRED,
+} from './agenda.messages';
 import { AGENDA_MODULE_CONFIG } from './constants';
 import { AgendaExplorer, AgendaMetadataAccessor } from './providers';
 import { AgendaOrchestrator } from './providers/agenda.orchestrator';
@@ -44,6 +48,22 @@ describe('AgendaModule', () => {
         AgendaOrchestrator,
       ]),
     );
+  });
+
+  it('should reject a root configuration without a backend', () => {
+    expect(() => AgendaModule.forRoot({} as any)).toThrow(
+      ROOT_BACKEND_REQUIRED,
+    );
+  });
+
+  it('should reject missing or conflicting async configuration strategies', () => {
+    expect(() => AgendaModule.forRootAsync({})).toThrow(ASYNC_CONFIG_REQUIRED);
+    expect(() =>
+      AgendaModule.forRootAsync({
+        useClass: RootConfigFactory,
+        useExisting: RootConfigFactory,
+      }),
+    ).toThrow(ASYNC_CONFIG_REQUIRED);
   });
 
   it('should create async root providers from useClass', async () => {

@@ -3,7 +3,7 @@ import { defineConfig } from 'tsdown';
 const sharedConfig = {
   clean: false,
   deps: {
-    skipNodeModulesBundle: true,
+    neverBundle: true,
   },
   entry: {
     index: 'lib/index.ts',

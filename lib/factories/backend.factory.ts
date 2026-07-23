@@ -1,5 +1,9 @@
 import type { AgendaBackend } from 'agenda';
-import { BACKEND_PACKAGE_REQUIRED, UNKNOWN_BACKEND } from '../agenda.messages';
+import {
+  BACKEND_PACKAGE_REQUIRED,
+  CUSTOM_BACKEND_FACTORY_REQUIRED,
+  UNKNOWN_BACKEND,
+} from '../agenda.messages';
 import type {
   AgendaBackendDefinition,
   AgendaBackendFactoryContext,
@@ -59,6 +63,10 @@ export async function createAgendaBackend(
   }
 
   if (definition.type === 'custom') {
+    if (typeof definition.factory !== 'function') {
+      throw new Error(CUSTOM_BACKEND_FACTORY_REQUIRED);
+    }
+
     return definition.factory(context);
   }
 
